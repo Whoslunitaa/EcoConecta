@@ -1,0 +1,18 @@
+# Secretos y variables de entorno locales
+.env
+
+# Dependencias y compilaciones
+node_modules/
+.next/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+.venv/
+
+# Archivos temporales o de sistema
+Thumbs.db
+.DS_Store
+*.log
