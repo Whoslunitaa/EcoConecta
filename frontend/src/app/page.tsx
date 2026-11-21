@@ -109,6 +109,27 @@ export default function EcoConectaPage() {
 
   const [vistaPublica, setVistaPublica] = useState<"pedir" | "aprender" | "whatsapp" | "registro" | "login">("pedir");
   const [vistaCoord, setVistaCoord] = useState<"bandeja" | "equipo" | "config">("bandeja");
+  const [filtroAdminSol, setFiltroAdminSol] = useState<"pendientes" | "todas" | "completadas">("pendientes");
+
+  const refrescarSolicitudesAdmin = async () => {
+    try {
+      const api = getApiUrl();
+      const res = await fetch(`${api}/solicitudes`, {
+        headers: { "rol-actor": "admin" },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setSolicitudes(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (usuarioActual?.rol === "admin") {
+      setFiltroAdminSol("pendientes");
+      refrescarSolicitudesAdmin();
+    }
+  }, [usuarioActual]);
 
   const [loginUser, setLoginUser] = useState<string>("");
   const [loginPass, setLoginPass] = useState<string>("");
@@ -2015,174 +2036,649 @@ export default function EcoConectaPage() {
           </section>
         )}
 
-        {esAdmin && (
-          <section className="flex flex-col gap-4">
-            <div className="bg-white p-4 rounded-2xl border-2 border-amber-500">
-              <h2 className="font-black text-base">Panel Administrador • Configuración WhatsApp y Aprobaciones</h2>
-              <p className="text-xs text-stone-600">
-                Configura el número oficial de WhatsApp Business (+57) y aprueba o edita los perfiles de Huerteros y Recicladores.
-              </p>
-            </div>
+        {esAdmin && (() => {
+          const solPendientes = solicitudes.filter(
+            (s) => s.estado !== "recolectada" && s.estado !== "cancelada"
+          );
+          const solCompletadas = solicitudes.filter((s) => s.estado === "recolectada");
+          const solicitudesAdminVisibles =
+            filtroAdminSol === "pendientes"
+              ? solPendientes
+              : filtroAdminSol === "completadas"
+              ? solCompletadas
+              : solicitudes;
 
-            {renderTarjetaConfigWhatsApp()}
+          const etiquetaCanalAdmin: Record<string, string> = {
+            whatsapp_cloud: "\uD83E\uDD16 Camilo WA Cloud",
+            whatsapp_audio: "\uD83C\uDF99\uFE0F Audio WA Business",
+            whatsapp_texto: "\uD83D\uDCAC Chat WA Business",
+            whatsapp_foto: "\uD83D\uDCF8 Foto WA Business",
+            whatsapp_ubicacion: "\uD83D\uDCCD Ubicaci\u00f3n WA",
+            asistente_web: "\uD83D\uDCAC Asistente Web",
+            web: "\uD83C\uDF10 Web",
+          };
 
-            <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                  <h3 className="font-black text-sm">Puntos por Recolección</h3>
-                  {reglasPuntos.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-2 bg-stone-50 p-2.5 rounded-xl border">
-                      <span className="font-bold text-xs uppercase">{r.flujo}</span>
-                      <input
-                        type="number"
-                        className="w-20 p-1.5 border rounded font-bold text-center text-sm"
-                        value={puntosEdit[r.flujo] ?? r.puntos_base}
-                        onChange={(e) =>
-                          setPuntosEdit({ ...puntosEdit, [r.flujo]: Number(e.target.value) })
+          return (
+            <section className="flex flex-col gap-5">
+              {/* BLOQUE SUPERIOR: SOLICITUDES CON MINI PESTANAS EN LA ESQUINA */}
+              <div className="bg-white p-4 rounded-2xl border-2 border-amber-500 flex flex-col gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 pb-3">
+                  <div>
+                    <h2 className="font-black text-base text-stone-900">
+                      \uD83D\uDCCB Solicitudes ({solicitudesAdminVisibles.length})
+                    </h2>
+                    <p className="text-xs text-stone-600">
+                      {filtroAdminSol === "pendientes"
+                        ? "Mostrando solicitudes pendientes por gestionar."
+                        : filtroAdminSol === "completadas"
+                        ? "Mostrando recolecciones ya completadas."
+                        : "Mostrando el historial completo de solicitudes."}
+                    </p>
+                  </div>
+
+                  {/* Mini pestanas en la esquina superior derecha */}
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFiltroAdminSol("todas");
+                        hablar(`Pesta\u00f1a todas las solicitudes, ${solicitudes.length} en total.`);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
+                        filtroAdminSol === "todas"
+                          ? "bg-stone-900 text-white border-stone-950"
+                          : "bg-stone-100 text-stone-800 border-stone-300 hover:bg-stone-200"
+                      }`}
+                    >
+                      Todas ({solicitudes.length})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFiltroAdminSol("pendientes");
+                        hablar(`Pesta\u00f1a pendientes, ${solPendientes.length} solicitudes por atender.`);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
+                        filtroAdminSol === "pendientes"
+                          ? "bg-amber-600 text-white border-amber-900"
+                          : "bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100"
+                      }`}
+                    >
+                      Pendientes ({solPendientes.length})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFiltroAdminSol("completadas");
+                        hablar(`Pesta\u00f1a completadas, ${solCompletadas.length} recolecciones cerradas.`);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
+                        filtroAdminSol === "completadas"
+                          ? "bg-emerald-700 text-white border-emerald-950"
+                          : "bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100"
+                      }`}
+                    >
+                      Completadas ({solCompletadas.length})
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (usuarioActual) {
+                          cargarDatosPrivados(usuarioActual, false);
+                          refrescarSolicitudesAdmin();
+                          hablar("Actualizando solicitudes y equipo operativo.");
                         }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => guardarReglaPuntos(r)}
-                        className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
-                      >
-                        Guardar
-                      </button>
-                    </div>
-                  ))}
+                      }}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-sky-50 text-sky-950 border-sky-300 hover:bg-sky-100"
+                    >
+                      \uD83D\uDD04 Actualizar
+                    </button>
+                  </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                  <h3 className="font-black text-sm">Publicar Guía Educativa</h3>
-                  <input type="text" placeholder="Título" className="p-2 border rounded text-sm" value={nuevoTituloEdu} onChange={(e) => setNuevoTituloEdu(e.target.value)} />
-                  <select className="p-2 border rounded text-sm" value={nuevoFlujoEdu} onChange={(e) => setNuevoFlujoEdu(e.target.value)}>
-                    <option value="organico">Orgánico</option>
-                    <option value="reciclable">Reciclable</option>
-                  </select>
-                  <textarea placeholder="Texto educativo..." className="p-2 border rounded text-sm" rows={2} value={nuevoTextoEdu} onChange={(e) => setNuevoTextoEdu(e.target.value)} />
+                {solicitudesAdminVisibles.length === 0 && (
+                  <p className="bg-stone-50 p-4 rounded-xl border text-xs font-bold text-stone-600 text-center">
+                    No hay solicitudes en la vista "{filtroAdminSol}".
+                  </p>
+                )}
+
+                <div className="flex flex-col gap-3">
+                  {solicitudesAdminVisibles.map((s) => {
+                    const rolNecesario = s.flujo === "organico" ? "huertero" : "reciclador";
+                    const equipoAprobado = usuarios.filter(
+                      (u) => u.rol === rolNecesario && u.aprobado
+                    );
+
+                    return (
+                      <div
+                        key={s.id}
+                        className="bg-stone-50 p-3.5 rounded-2xl border-2 border-stone-300 flex flex-col gap-2.5"
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                                  s.estado === "recolectada"
+                                    ? "bg-emerald-100 text-emerald-950"
+                                    : "bg-amber-100 text-amber-950"
+                                }`}
+                              >
+                                {s.codigo} \u2022 {s.estado}
+                              </span>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white border border-stone-300 text-stone-800">
+                                {s.flujo === "organico" ? "\uD83C\uDF31 Org\u00e1nicos" : "\u267B\uFE0F Reciclables"}
+                              </span>
+                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-950 border border-green-400">
+                                {etiquetaCanalAdmin[s.canal_origen || "web"] || s.canal_origen}
+                              </span>
+                            </div>
+
+                            <p className="font-extrabold text-base mt-1">{s.solicitante_nombre}</p>
+                            <p className="text-xs font-bold text-stone-800">\uD83D\uDCCD {s.solicitante_direccion}</p>
+                            <p className="text-xs text-green-800 font-bold">\uD83D\uDCF1 WhatsApp: +{s.solicitante_telefono}</p>
+                            <p className="text-xs text-stone-600">\u23F0 {s.disponibilidad_horaria}</p>
+                            {s.fecha_programada && (
+                              <p className="text-xs font-extrabold text-emerald-900 mt-0.5">
+                                \uD83D\uDCC5 Programada: {s.fecha_programada} {s.hora_programada ? `\u2022 ${s.hora_programada}` : ""}
+                              </p>
+                            )}
+                            {s.descripcion && (
+                              <p className="text-xs text-stone-800 bg-white p-2 rounded-lg border mt-1">
+                                \uD83D\uDCDD <strong>Detalle:</strong> {s.descripcion}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                hablar(
+                                  `Solicitud ${s.codigo}, estado ${s.estado}, tipo ${
+                                    s.flujo === "organico" ? "residuos org\u00e1nicos" : "residuos reciclables"
+                                  }. Vecino ${s.solicitante_nombre}, direcci\u00f3n ${s.solicitante_direccion}, horario ${
+                                    s.disponibilidad_horaria
+                                  }.${s.descripcion ? ` Detalle: ${s.descripcion}` : ""}`
+                                )
+                              }
+                              className="px-2.5 py-1.5 bg-amber-100 text-amber-950 rounded-lg text-xs font-bold"
+                            >
+                              \uD83D\uDD0A Escuchar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                hablar("Editar solicitud");
+                                setEditandoSolId(editandoSolId === s.id ? null : s.id);
+                                setEditSolNombre(s.solicitante_nombre);
+                                setEditSolDir(s.solicitante_direccion);
+                                setEditSolTel(s.solicitante_telefono);
+                                setEditSolHorario(s.disponibilidad_horaria);
+                                setEditSolEstado(s.estado);
+                              }}
+                              className="px-2.5 py-1.5 bg-sky-100 text-sky-900 rounded-lg text-xs font-bold"
+                            >
+                              \u270F\uFE0F Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => eliminarSolicitud(s.id)}
+                              className="px-2.5 py-1.5 bg-red-100 text-red-900 rounded-lg text-xs font-bold"
+                            >
+                              \uD83D\uDDD1\uFE0F Eliminar
+                            </button>
+                          </div>
+                        </div>
+
+                        {editandoSolId === s.id && (
+                          <div className="bg-sky-50 p-3 rounded-xl border border-sky-300 flex flex-col gap-2">
+                            <input
+                              type="text"
+                              value={editSolNombre}
+                              onFocus={() => hablar("Editar nombre del solicitante")}
+                              onChange={(e) => setEditSolNombre(e.target.value)}
+                              className="p-2 border rounded-lg text-xs bg-white"
+                              placeholder="Nombre solicitante"
+                            />
+                            <input
+                              type="text"
+                              value={editSolDir}
+                              onFocus={() => hablar("Editar direcci\u00f3n de recolecci\u00f3n")}
+                              onChange={(e) => setEditSolDir(e.target.value)}
+                              className="p-2 border rounded-lg text-xs bg-white"
+                              placeholder="Direcci\u00f3n"
+                            />
+                            <input
+                              type="text"
+                              value={editSolTel}
+                              onFocus={() => hablar("Editar n\u00famero de WhatsApp")}
+                              onChange={(e) => setEditSolTel(e.target.value)}
+                              className="p-2 border rounded-lg text-xs bg-white"
+                              placeholder="WhatsApp"
+                            />
+                            <select
+                              value={editSolEstado}
+                              onFocus={() => hablar("Cambiar estado de la solicitud")}
+                              onChange={(e) => setEditSolEstado(e.target.value)}
+                              className="p-2 border rounded-lg text-xs bg-white font-bold"
+                            >
+                              <option value="recibida">recibida</option>
+                              <option value="en_revision">en_revision</option>
+                              <option value="programada">programada</option>
+                              <option value="recolectada">recolectada</option>
+                              <option value="cancelada">cancelada</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                guardarEdicionSolicitud(s.id);
+                                setTimeout(refrescarSolicitudesAdmin, 400);
+                              }}
+                              className="bg-sky-700 text-white font-bold py-2 rounded-lg text-xs"
+                            >
+                              Guardar Cambios
+                            </button>
+                          </div>
+                        )}
+
+                        {s.estado !== "recolectada" && s.estado !== "cancelada" && (
+                          <div className="bg-white p-3 rounded-xl border flex flex-col gap-2">
+                            <select
+                              className="p-2 rounded-lg border bg-white text-xs font-bold"
+                              value={recolectorSel[s.id] || s.recolector_id || ""}
+                              onFocus={() => hablar(`Selecciona el ${rolNecesario} aprobado para asignar esta solicitud`)}
+                              onChange={(e) =>
+                                setRecolectorSel({ ...recolectorSel, [s.id]: Number(e.target.value) })
+                              }
+                            >
+                              <option value="">1. Asignar {rolNecesario} aprobado...</option>
+                              {equipoAprobado.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.nombre} ({r.vehiculo_herramienta || "Sin veh\u00edculo"})
+                                </option>
+                              ))}
+                            </select>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="date"
+                                className="p-2 rounded-lg border bg-white text-xs"
+                                value={fechaSel[s.id] || s.fecha_programada || ""}
+                                onFocus={() => hablar("Selecciona la fecha de recolecci\u00f3n")}
+                                onChange={(e) => setFechaSel({ ...fechaSel, [s.id]: e.target.value })}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Hora asignada (ej. 9:00 AM)"
+                                className="p-2 rounded-lg border bg-white text-xs"
+                                value={horaSel[s.id] || s.hora_programada || ""}
+                                onFocus={() => hablar("Escribe la hora asignada para la recolecci\u00f3n")}
+                                onChange={(e) => setHoraSel({ ...horaSel, [s.id]: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  programarSolicitud(s.id);
+                                  setTimeout(refrescarSolicitudesAdmin, 400);
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
+                              >
+                                \uD83D\uDCC5 Programar y WhatsApp
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  cerrarRecoleccion(s.id);
+                                  setTimeout(refrescarSolicitudesAdmin, 400);
+                                }}
+                                className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
+                              >
+                                \u2705 Marcar Completada
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => verHistorial(s.id)}
+                          className="text-xs font-bold text-sky-800 underline text-left"
+                        >
+                          {historialAbierto[s.id] ? "Ocultar trazabilidad" : "Ver trazabilidad"}
+                        </button>
+
+                        {historialAbierto[s.id] && (
+                          <ul className="bg-white p-2.5 rounded-xl border text-xs flex flex-col gap-1">
+                            {historialAbierto[s.id].map((h) => (
+                              <li key={h.id}>
+                                <strong>{h.estado_nuevo.toUpperCase()}</strong> ({h.actor_nombre}): {h.observacion}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* SECCION INFERIOR 1: EQUIPO OPERATIVO */}
+              <div className="bg-white p-4 rounded-2xl border-2 border-stone-400 flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2 border-b border-stone-200 pb-2">
+                  <div>
+                    <h2 className="font-black text-base text-stone-900">
+                      \uD83D\uDC77 Equipo Operativo ({usuarios.length})
+                    </h2>
+                    <p className="text-xs text-stone-600">
+                      Huerteros, recicladores y coordinadores registrados en EcoConecta.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={crearContenidoEducativo}
-                    className="bg-sky-700 text-white font-bold py-2 rounded-xl text-xs"
+                    onClick={() =>
+                      hablar(
+                        `Secci\u00f3n Equipo Operativo. Hay ${usuarios.length} integrantes registrados. Aqu\u00ed puedes aprobar perfiles pendientes, editar sus datos o eliminarlos.`
+                      )
+                    }
+                    className="bg-stone-100 text-stone-900 font-extrabold text-xs px-3 py-1.5 rounded-xl border border-stone-400"
                   >
-                    Publicar Guía
+                    \uD83D\uDD0A Escuchar
                   </button>
                 </div>
 
-            <div className="bg-white p-4 rounded-2xl border-2 border-emerald-600 flex flex-col gap-2">
-              <h3 className="font-black text-sm">➕ Añadir Nuevo Usuario o Rol</h3>
-              <select
-                value={nuevoStaffRol}
-                onChange={(e) => setNuevoStaffRol(e.target.value)}
-                className="p-2 border rounded text-xs font-bold bg-white"
-              >
-                <option value="huertero">Huertero</option>
-                <option value="reciclador">Reciclador</option>
-                <option value="coord_huerteros">Coordinador de Huerteros</option>
-                <option value="coord_recicladores">Coordinador de Recicladores</option>
-                <option value="admin">Administrador</option>
-              </select>
-              <input type="text" placeholder="Nombre completo *" value={nuevoStaffNombre} onChange={(e) => setNuevoStaffNombre(e.target.value)} className="p-2 border rounded text-xs" />
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" placeholder="Usuario *" value={nuevoStaffUser} onChange={(e) => setNuevoStaffUser(e.target.value)} className="p-2 border rounded text-xs" />
-                <input type="password" placeholder="Contraseña *" value={nuevoStaffPass} onChange={(e) => setNuevoStaffPass(e.target.value)} className="p-2 border rounded text-xs" />
-              </div>
-              <input type="tel" placeholder="Número de WhatsApp *" value={nuevoStaffTel} onChange={(e) => setNuevoStaffTel(e.target.value)} className="p-2 border rounded text-xs" />
-              <input type="text" placeholder="Dirección *" value={nuevoStaffDir} onChange={(e) => setNuevoStaffDir(e.target.value)} className="p-2 border rounded text-xs" />
-              <input type="text" placeholder="Vehículo / Herramienta" value={nuevoStaffVehiculo} onChange={(e) => setNuevoStaffVehiculo(e.target.value)} className="p-2 border rounded text-xs" />
-              <input type="text" placeholder="Requerimientos operativos" value={nuevoStaffReq} onChange={(e) => setNuevoStaffReq(e.target.value)} className="p-2 border rounded text-xs" />
-              <button
-                type="button"
-                onClick={() => crearUsuarioDesdeStaff(nuevoStaffRol)}
-                className="bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs"
-              >
-                Guardar y Activar Perfil
-              </button>
-            </div>
+                {usuarios.map((u) => (
+                  <div key={u.id} className="bg-stone-50 p-3.5 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
+                    <div className="flex justify-between items-start gap-2">
+                      <div>
+                        <span className="text-xs font-black bg-stone-200 px-2 py-0.5 rounded uppercase mr-2">
+                          {u.rol}
+                        </span>
+                        <span
+                          className={`text-xs font-black px-2 py-0.5 rounded ${
+                            u.aprobado ? "bg-emerald-100 text-emerald-900" : "bg-amber-200 text-amber-950"
+                          }`}
+                        >
+                          {u.aprobado ? "\u2705 Aprobado" : "\u23F3 Pendiente de Aprobaci\u00f3n"}
+                        </span>
+                        <p className="font-black text-sm mt-1">{u.nombre}</p>
+                        <p className="text-xs text-stone-600">
+                          Usuario: <strong>{u.username}</strong> \u2022 \uD83D\uDCF1 WhatsApp: +{u.telefono} \u2022 \uD83D\uDCCD {u.direccion}
+                        </p>
+                        {u.vehiculo_herramienta && (
+                          <p className="text-xs text-emerald-900 font-bold">\uD83D\uDE9B Equipo: {u.vehiculo_herramienta}</p>
+                        )}
+                        {u.requerimientos_operativos && (
+                          <p className="text-xs text-stone-700">\uD83D\uDCDD Requerimientos: {u.requerimientos_operativos}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            hablar(
+                              `Integrante ${u.nombre}, rol ${u.rol}, estado ${
+                                u.aprobado ? "aprobado" : "pendiente de aprobaci\u00f3n"
+                              }, direcci\u00f3n ${u.direccion}.`
+                            )
+                          }
+                          className="bg-amber-100 text-amber-950 font-bold text-xs px-3 py-1.5 rounded-lg"
+                        >
+                          \uD83D\uDD0A Escuchar
+                        </button>
+                        {!u.aprobado && (
+                          <button
+                            type="button"
+                            onClick={() => aprobarOEditarUsuario(u, true)}
+                            className="bg-emerald-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg"
+                          >
+                            \u2705 Aprobar Perfil
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => abrirEditorUsuario(u)}
+                          className="bg-sky-100 text-sky-900 font-bold text-xs px-3 py-1.5 rounded-lg"
+                        >
+                          \u270F\uFE0F Editar
+                        </button>
+                        {!["admin", "coord_huerteros", "coord_recicladores"].includes(u.username) && (
+                          <button
+                            type="button"
+                            onClick={() => eliminarUsuario(u)}
+                            className="bg-red-100 text-red-900 font-bold text-xs px-3 py-1.5 rounded-lg"
+                          >
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
+                    </div>
 
-            {usuarios.map((u) => (
-              <div key={u.id} className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                <div className="flex justify-between items-start gap-2">
+                    {editandoUserId === u.id && (
+                      <div className="bg-white p-3 rounded-xl border flex flex-col gap-2">
+                        <input type="text" value={editUserNombre} onFocus={() => hablar("Editar nombre completo")} onChange={(e) => setEditUserNombre(e.target.value)} placeholder="Nombre" className="p-2 border rounded text-xs" />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="text" value={editUserUsername} onFocus={() => hablar("Editar nombre de usuario")} onChange={(e) => setEditUserUsername(e.target.value)} placeholder="Usuario" className="p-2 border rounded text-xs" />
+                          <input type="password" value={editUserPass} onFocus={() => hablar("Escribir nueva contrase\u00f1a opcional")} onChange={(e) => setEditUserPass(e.target.value)} placeholder="Nueva clave (opcional)" className="p-2 border rounded text-xs" />
+                        </div>
+                        <select value={editUserRol} onFocus={() => hablar("Seleccionar rol del integrante")} onChange={(e) => setEditUserRol(e.target.value)} className="p-2 border rounded text-xs bg-white font-bold">
+                          <option value="admin">admin</option>
+                          <option value="coord_huerteros">coord_huerteros</option>
+                          <option value="coord_recicladores">coord_recicladores</option>
+                          <option value="huertero">huertero</option>
+                          <option value="reciclador">reciclador</option>
+                        </select>
+                        <input type="text" value={editUserTel} onFocus={() => hablar("Editar n\u00famero de WhatsApp")} onChange={(e) => setEditUserTel(e.target.value)} placeholder="WhatsApp" className="p-2 border rounded text-xs" />
+                        <input type="text" value={editUserDir} onFocus={() => hablar("Editar direcci\u00f3n o manzana y casa")} onChange={(e) => setEditUserDir(e.target.value)} placeholder="Direcci\u00f3n" className="p-2 border rounded text-xs" />
+                        <input type="text" value={editUserVehiculo} onFocus={() => hablar("Editar veh\u00edculo o herramienta")} onChange={(e) => setEditUserVehiculo(e.target.value)} placeholder="Veh\u00edculo/Herramienta" className="p-2 border rounded text-xs" />
+                        <input type="text" value={editUserReq} onFocus={() => hablar("Editar requerimientos operativos")} onChange={(e) => setEditUserReq(e.target.value)} placeholder="Requerimientos" className="p-2 border rounded text-xs" />
+                        <button
+                          type="button"
+                          onClick={() => aprobarOEditarUsuario(u)}
+                          className="bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs"
+                        >
+                          Guardar Cambios
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* SECCION INFERIOR 2: CUADRO GUIADO PARA NUEVO INTEGRANTE */}
+              <div className="bg-white p-4 rounded-2xl border-2 border-emerald-600 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-2">
                   <div>
-                    <span className="text-xs font-black bg-stone-200 px-2 py-0.5 rounded uppercase mr-2">
-                      {u.rol}
-                    </span>
-                    <span
-                      className={`text-xs font-black px-2 py-0.5 rounded ${
-                        u.aprobado ? "bg-emerald-100 text-emerald-900" : "bg-amber-200 text-amber-950"
-                      }`}
-                    >
-                      {u.aprobado ? "✅ Aprobado" : "⏳ Pendiente de Aprobación"}
-                    </span>
-                    <p className="font-black text-sm mt-1">{u.nombre}</p>
+                    <h3 className="font-black text-base text-emerald-950">\u2795 Nuevo Integrante</h3>
                     <p className="text-xs text-stone-600">
-                      Usuario: <strong>{u.username}</strong> • 📱 WhatsApp: +{u.telefono} • 📍 {u.direccion}
+                      Toca cada cuadro para escuchar la instrucci\u00f3n de voz antes de escribir.
                     </p>
-                    {u.vehiculo_herramienta && (
-                      <p className="text-xs text-emerald-900 font-bold">🚛 Equipo: {u.vehiculo_herramienta}</p>
-                    )}
-                    {u.requerimientos_operativos && (
-                      <p className="text-xs text-stone-700">📝 Requerimientos: {u.requerimientos_operativos}</p>
-                    )}
                   </div>
-                  <div className="flex flex-col gap-1">
-                    {!u.aprobado && (
-                      <button
-                        type="button"
-                        onClick={() => aprobarOEditarUsuario(u, true)}
-                        className="bg-emerald-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg"
-                      >
-                        ✅ Aprobar Perfil
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => abrirEditorUsuario(u)}
-                      className="bg-sky-100 text-sky-900 font-bold text-xs px-3 py-1.5 rounded-lg"
-                    >
-                      ✏️ Editar
-                    </button>
-                    {!["admin", "coord_huerteros", "coord_recicladores"].includes(u.username) && (
-                      <button
-                        type="button"
-                        onClick={() => eliminarUsuario(u)}
-                        className="bg-red-100 text-red-900 font-bold text-xs px-3 py-1.5 rounded-lg"
-                      >
-                        Eliminar
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      hablar(
+                        "Cuadro para agregar un nuevo integrante al equipo. Toca cada casilla para escuchar qu\u00e9 dato debes escribir y al terminar presiona Guardar y Activar Integrante."
+                      )
+                    }
+                    className="bg-emerald-100 text-emerald-950 font-extrabold text-xs px-3 py-2 rounded-xl border border-emerald-600"
+                  >
+                    \uD83D\uDD0A Escuchar gu\u00eda
+                  </button>
                 </div>
 
-                {editandoUserId === u.id && (
-                  <div className="bg-stone-50 p-3 rounded-xl border flex flex-col gap-2">
-                    <input type="text" value={editUserNombre} onChange={(e) => setEditUserNombre(e.target.value)} placeholder="Nombre" className="p-2 border rounded text-xs" />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input type="text" value={editUserUsername} onChange={(e) => setEditUserUsername(e.target.value)} placeholder="Usuario" className="p-2 border rounded text-xs" />
-                      <input type="password" value={editUserPass} onChange={(e) => setEditUserPass(e.target.value)} placeholder="Nueva clave (opcional)" className="p-2 border rounded text-xs" />
-                    </div>
-                    <select value={editUserRol} onChange={(e) => setEditUserRol(e.target.value)} className="p-2 border rounded text-xs bg-white font-bold">
-                      <option value="admin">admin</option>
-                      <option value="coord_huerteros">coord_huerteros</option>
-                      <option value="coord_recicladores">coord_recicladores</option>
-                      <option value="huertero">huertero</option>
-                      <option value="reciclador">reciclador</option>
-                    </select>
-                    <input type="text" value={editUserTel} onChange={(e) => setEditUserTel(e.target.value)} placeholder="WhatsApp" className="p-2 border rounded text-xs" />
-                    <input type="text" value={editUserDir} onChange={(e) => setEditUserDir(e.target.value)} placeholder="Dirección" className="p-2 border rounded text-xs" />
-                    <input type="text" value={editUserVehiculo} onChange={(e) => setEditUserVehiculo(e.target.value)} placeholder="Vehículo/Herramienta" className="p-2 border rounded text-xs" />
-                    <input type="text" value={editUserReq} onChange={(e) => setEditUserReq(e.target.value)} placeholder="Requerimientos" className="p-2 border rounded text-xs" />
+                <select
+                  value={nuevoStaffRol}
+                  onFocus={() =>
+                    hablar(
+                      "Paso uno: selecciona el rol del nuevo integrante, puede ser Huertero, Reciclador, Coordinador de Huerteros, Coordinador de Recicladores o Administrador."
+                    )
+                  }
+                  onChange={(e) => {
+                    setNuevoStaffRol(e.target.value);
+                    hablar(`Rol seleccionado: ${e.target.value}`);
+                  }}
+                  className="p-3 border-2 border-emerald-500 rounded-xl text-xs font-bold bg-white"
+                >
+                  <option value="huertero">Huertero (Residuos Org\u00e1nicos)</option>
+                  <option value="reciclador">Reciclador (Residuos Reciclables)</option>
+                  <option value="coord_huerteros">Coordinador de Huerteros</option>
+                  <option value="coord_recicladores">Coordinador de Recicladores</option>
+                  <option value="admin">Administrador</option>
+                </select>
+
+                <input
+                  type="text"
+                  placeholder="Nombre completo *"
+                  value={nuevoStaffNombre}
+                  onFocus={() => hablar("Paso dos: escribe el nombre completo del nuevo integrante.")}
+                  onChange={(e) => setNuevoStaffNombre(e.target.value)}
+                  className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Usuario *"
+                    value={nuevoStaffUser}
+                    onFocus={() => hablar("Paso tres: escribe un nombre de usuario para iniciar sesi\u00f3n.")}
+                    onChange={(e) => setNuevoStaffUser(e.target.value)}
+                    className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Contrase\u00f1a *"
+                    value={nuevoStaffPass}
+                    onFocus={() => hablar("Paso cuatro: escribe una contrase\u00f1a f\u00e1cil de recordar.")}
+                    onChange={(e) => setNuevoStaffPass(e.target.value)}
+                    className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                  />
+                </div>
+
+                <input
+                  type="tel"
+                  placeholder="N\u00famero de WhatsApp *"
+                  value={nuevoStaffTel}
+                  onFocus={() => hablar("Paso cinco: escribe el n\u00famero de WhatsApp del integrante.")}
+                  onChange={(e) => setNuevoStaffTel(e.target.value)}
+                  className="p-3 border-2 border-green-500 rounded-xl text-xs font-bold"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Direcci\u00f3n o Manzana / Casa *"
+                  value={nuevoStaffDir}
+                  onFocus={() => hablar("Paso seis: escribe la direcci\u00f3n, manzana y casa del integrante.")}
+                  onChange={(e) => setNuevoStaffDir(e.target.value)}
+                  className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Veh\u00edculo o herramienta de trabajo"
+                  value={nuevoStaffVehiculo}
+                  onFocus={() =>
+                    hablar("Paso siete: escribe qu\u00e9 veh\u00edculo o herramienta de trabajo tiene, como carretilla, triciclo o motocarro.")
+                  }
+                  onChange={(e) => setNuevoStaffVehiculo(e.target.value)}
+                  className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                />
+
+                <input
+                  type="text"
+                  placeholder="Requerimientos operativos, horarios o sectores"
+                  value={nuevoStaffReq}
+                  onFocus={() =>
+                    hablar("Paso ocho: escribe sus horarios disponibles, sectores y capacidad de recolecci\u00f3n.")
+                  }
+                  onChange={(e) => setNuevoStaffReq(e.target.value)}
+                  className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    hablar("Guardando y activando nuevo integrante en el equipo operativo.");
+                    crearUsuarioDesdeStaff(nuevoStaffRol);
+                  }}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-3 rounded-xl text-xs"
+                >
+                  \u2705 Guardar y Activar Integrante
+                </button>
+              </div>
+
+              {/* CONFIGURACION ADICIONAL DEL ADMINISTRADOR */}
+              {renderTarjetaConfigWhatsApp()}
+
+              <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
+                <h3 className="font-black text-sm">Puntos por Recolecci\u00f3n</h3>
+                {reglasPuntos.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-2 bg-stone-50 p-2.5 rounded-xl border">
+                    <span className="font-bold text-xs uppercase">{r.flujo}</span>
+                    <input
+                      type="number"
+                      className="w-20 p-1.5 border rounded font-bold text-center text-sm"
+                      value={puntosEdit[r.flujo] ?? r.puntos_base}
+                      onFocus={() => hablar(`Puntos base para ${r.flujo}`)}
+                      onChange={(e) =>
+                        setPuntosEdit({ ...puntosEdit, [r.flujo]: Number(e.target.value) })
+                      }
+                    />
                     <button
                       type="button"
-                      onClick={() => aprobarOEditarUsuario(u)}
-                      className="bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs"
+                      onClick={() => guardarReglaPuntos(r)}
+                      className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
                     >
-                      Guardar Cambios
+                      Guardar
                     </button>
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </section>
-        )}
+
+              <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
+                <h3 className="font-black text-sm">Publicar Gu\u00eda Educativa</h3>
+                <input
+                  type="text"
+                  placeholder="T\u00edtulo"
+                  className="p-2 border rounded text-sm"
+                  value={nuevoTituloEdu}
+                  onFocus={() => hablar("Escribe el t\u00edtulo de la gu\u00eda educativa")}
+                  onChange={(e) => setNuevoTituloEdu(e.target.value)}
+                />
+                <select
+                  className="p-2 border rounded text-sm"
+                  value={nuevoFlujoEdu}
+                  onFocus={() => hablar("Selecciona si la gu\u00eda es para residuos org\u00e1nicos o reciclables")}
+                  onChange={(e) => setNuevoFlujoEdu(e.target.value)}
+                >
+                  <option value="organico">Org\u00e1nico</option>
+                  <option value="reciclable">Reciclable</option>
+                </select>
+                <textarea
+                  placeholder="Texto educativo..."
+                  className="p-2 border rounded text-sm"
+                  rows={2}
+                  value={nuevoTextoEdu}
+                  onFocus={() => hablar("Escribe el contenido de la gu\u00eda educativa")}
+                  onChange={(e) => setNuevoTextoEdu(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={crearContenidoEducativo}
+                  className="bg-sky-700 text-white font-bold py-2 rounded-xl text-xs"
+                >
+                  Publicar Gu\u00eda
+                </button>
+              </div>
+            </section>
+          );
+        })()}
       </div>
     </main>
   );
