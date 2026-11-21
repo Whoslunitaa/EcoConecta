@@ -193,10 +193,37 @@ export default function EcoConectaPage() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     if (!audioHabilitado) return;
+    const meses = [
+      "enero", "febrero", "marzo", "abril", "mayo", "junio",
+      "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+    ];
+    const textoLimpio = texto
+      .replace(/1\uFE0F?\u20E3/g, "opción 1, ")
+      .replace(/2\uFE0F?\u20E3/g, "opción 2, ")
+      .replace(/3\uFE0F?\u20E3/g, "opción 3, ")
+      .replace(/4\uFE0F?\u20E3/g, "opción 4, ")
+      .replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2300-\u27BF]|[\uFE00-\uFE0F\u200D\u20E3]/g, " ")
+      .replace(/\*/g, "")
+      .replace(/->/g, ", luego ")
+      .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, y, m, d) => {
+        const mes = meses[parseInt(m, 10) - 1] || m;
+        return `${parseInt(d, 10)} de ${mes} de ${y}`;
+      })
+      .replace(/\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g, (_, d, m, y) => {
+        const mes = meses[parseInt(m, 10) - 1] || m;
+        return `${parseInt(d, 10)} de ${mes} de ${y}`;
+      })
+      .replace(/\b1\/2\b/g, "1 o 2")
+      .replace(/([A-Za-zÁÉÍÓÚáéíóúÑñ])\s*\/\s*([A-Za-zÁÉÍÓÚáéíóúÑñ])/g, "$1 o $2")
+      .replace(/\+57\s*/g, "más 57 ")
+      .replace(/\b\d{7,12}\b/g, (num) => num.split("").join(" "))
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!textoLimpio) return;
     window.speechSynthesis.resume();
 
     const lanzarVoz = () => {
-      const utter = new SpeechSynthesisUtterance(texto);
+      const utter = new SpeechSynthesisUtterance(textoLimpio);
       const voces = window.speechSynthesis.getVoices();
       const vozEs =
         voces.find((v) => v.lang.toLowerCase().includes("es-co")) ||
@@ -1368,7 +1395,7 @@ export default function EcoConectaPage() {
 
             {vistaPublica === "registro" && (
               <div className="bg-white p-5 rounded-2xl border-2 border-emerald-600 flex flex-col gap-3 shadow-sm">
-                <h2 className="font-black text-lg">Registro de Huerteros y Recicladores</h2>
+                <div className="flex items-center justify-between gap-2"><h2 className="font-black text-lg">Registro de Huerteros y Recicladores</h2><button type="button" onClick={() => hablar("Registro de Huerteros y Recicladores. Selecciona si eres huertero o reciclador y llena cada casilla para enviar tu perfil al administrador.")} className="bg-emerald-100 text-emerald-950 font-extrabold text-xs px-3 py-2 rounded-xl border border-emerald-600">🔊 Escuchar guía</button></div>
                 <p className="text-xs text-stone-600">
                   Ingresa tu número de WhatsApp y todos tus requerimientos. Cuando el Administrador apruebe tu perfil en la app, recibirás tus tareas con ubicación, día y hora asignados por WhatsApp Business.
                 </p>
@@ -1381,7 +1408,7 @@ export default function EcoConectaPage() {
 
                 <label className="text-xs font-extrabold">Selecciona tu perfil *</label>
                 <select
-                  value={regRol}
+                  value={regRol} onFocus={() => hablar("Selecciona tu perfil: huertero para residuos orgánicos o reciclador para reciclables")}
                   onChange={(e) => {
                     setRegRol(e.target.value);
                     hablar(e.target.value === "huertero" ? "Perfil Huertero" : "Perfil Reciclador");
@@ -1392,16 +1419,16 @@ export default function EcoConectaPage() {
                   <option value="reciclador">♻️ Reciclador (Recolección de Reciclables)</option>
                 </select>
 
-                <input type="text" placeholder="Nombre completo *" value={regNombre} onChange={(e) => setRegNombre(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
+                <input type="text" placeholder="Nombre completo *" value={regNombre} onFocus={() => hablar("Escribe tu nombre completo")} onChange={(e) => setRegNombre(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="text" placeholder="Usuario *" value={regUsername} onChange={(e) => setRegUsername(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
-                  <input type="password" placeholder="Contraseña *" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
+                  <input type="text" placeholder="Usuario *" value={regUsername} onFocus={() => hablar("Escribe un nombre de usuario para iniciar sesión")} onChange={(e) => setRegUsername(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
+                  <input type="password" placeholder="Contraseña *" value={regPassword} onFocus={() => hablar("Escribe una contraseña fácil de recordar")} onChange={(e) => setRegPassword(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
                 </div>
-                <input type="tel" placeholder="Número de WhatsApp *" value={regTelefono} onChange={(e) => setRegTelefono(e.target.value)} className="p-3 rounded-xl border-2 border-green-500 text-sm font-bold" />
-                <input type="text" placeholder="Dirección o Manzana / Casa *" value={regDireccion} onChange={(e) => setRegDireccion(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
-                <input type="text" placeholder="Vehículo o herramienta de trabajo" value={regVehiculo} onChange={(e) => setRegVehiculo(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
+                <input type="tel" placeholder="Número de WhatsApp *" value={regTelefono} onFocus={() => hablar("Escribe tu número de WhatsApp")} onChange={(e) => setRegTelefono(e.target.value)} className="p-3 rounded-xl border-2 border-green-500 text-sm font-bold" />
+                <input type="text" placeholder="Dirección o Manzana / Casa *" value={regDireccion} onFocus={() => hablar("Escribe tu dirección, manzana y casa")} onChange={(e) => setRegDireccion(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
+                <input type="text" placeholder="Vehículo o herramienta de trabajo" value={regVehiculo} onFocus={() => hablar("Escribe qué vehículo o herramienta de trabajo tienes")} onChange={(e) => setRegVehiculo(e.target.value)} className="p-3 rounded-xl border-2 border-stone-300 text-sm" />
                 <textarea
-                  placeholder="Todos tus requerimientos operativos, horarios disponibles, zonas y capacidad..."
+                  placeholder="Todos tus requerimientos operativos, horarios disponibles, zonas y capacidad..." onFocus={() => hablar("Escribe tus horarios disponibles, zonas y capacidad de recolección")}
                   value={regRequerimientos}
                   onChange={(e) => setRegRequerimientos(e.target.value)}
                   rows={3}
