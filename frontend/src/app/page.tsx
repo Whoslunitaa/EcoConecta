@@ -488,8 +488,6 @@ export default function EcoConectaPage() {
     cargarDatosPublicos();
   }, []);
 
-  const usuarioIdActual = usuarioActual?.id ?? null;
-  const usuarioRolActual = usuarioActual?.rol ?? null;
 
   useEffect(() => {
     if (!usuarioIdActual || !usuarioRolActual) return;
