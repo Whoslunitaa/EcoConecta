@@ -177,6 +177,11 @@ export default function EcoConectaPage() {
   const [mensajeSistema, setMensajeSistema] = useState<string>("");
   useEffect(() => {
     if (mensajeSistema && mensajeSistema.trim().length > 0) {
+      hablar(mensajeSistema); // lectura-automatica-mensajes
+    }
+  }, [mensajeSistema]);
+  useEffect(() => {
+    if (mensajeSistema && mensajeSistema.trim().length > 0) {
       hablar(mensajeSistema); // auto-lectura
     }
   }, [mensajeSistema]);
@@ -799,6 +804,23 @@ export default function EcoConectaPage() {
     const recId = recolectorSel[solId] || solActual?.recolector_id;
     const fecha = fechaSel[solId] || solActual?.fecha_programada || new Date().toISOString().slice(0, 10);
     const hora = (horaSel[solId] || solActual?.hora_programada || solActual?.disponibilidad_horaria || "").trim();
+    const normH = (v: string) => v.trim().toLowerCase().replace(/\s+/g, "");
+    const conflictoHorario = solicitudes.find(
+      (s) =>
+        s.id !== solId &&
+        s.estado !== "cancelada" &&
+        Number(s.recolector_id) === Number(recId) &&
+        String(s.fecha_programada || "").trim() === String(fecha).trim() &&
+        normH(String(s.hora_programada || "")) === normH(String(hora)) &&
+        normH(String(hora)) !== ""
+    );
+    if (conflictoHorario) {
+      const empNombre = usuarios.find((u) => Number(u.id) === Number(recId))?.nombre || "este encargado";
+      const aviso = `No es posible agendar a ${empNombre} el ${fecha} a las ${hora}; ya tiene una visita asignada en ese mismo día y hora. Puedes agendar a otro integrante o elegir otra hora.`;
+      setMensajeSistema(aviso);
+      hablar(aviso);
+      return;
+    }
     const normalizarHora = (h: string) => h.trim().toLowerCase().replace(/\s+/g, "");
     const normalizarFecha = (f: string) => f.trim();
     const conflicto = solicitudes.find(
@@ -2184,589 +2206,512 @@ export default function EcoConectaPage() {
           </section>
         )}
 
+        
         {usuarioActual && ["admin", "coord_huerteros", "coord_recicladores", "huertero", "reciclador"].includes(usuarioActual.rol) && (
-  <section className="bg-white p-4 rounded-2xl border-2 border-[#0A9B70] flex flex-col gap-3">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            setPestanaActiva("gestion");
-            hablar("Pestaña de gestión activa.");
-          }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black border ${
-            pestanaActiva === "gestion"
-              ? "bg-[#063B2E] text-white border-[#063B2E]"
-              : "bg-[#FFFFFF] text-[#063B2E] border-[#0A9B70]"
-          }`}
-        >
-          📋 Gestión
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setPestanaActiva("calendario");
-            const msgCal = "Pestaña calendario abierta. Selecciona una fecha o visita para escuchar día, mes, año y encargado.";
-            setMensajeSistema(msgCal);
-            hablar(msgCal);
-          }}
-          className={`px-3 py-1.5 rounded-xl text-xs font-black border ${
-            pestanaActiva === "calendario"
-              ? "bg-[#168A2E] text-white border-[#063B2E]"
-              : "bg-[#FFFFFF] text-[#063B2E] border-[#168A2E]"
-          }`}
-        >
-          📅 Calendario
-        </button>
-      </div>
-    </div>
-
-    {pestanaActiva === "calendario" && (() => {
-      const paletaEco = [
-        { bg: "#168A2E", border: "#063B2E", text: "#FFFFFF", nombreColor: "Verde Eco" },
-        { bg: "#0A9B70", border: "#063B2E", text: "#FFFFFF", nombreColor: "Verde Turquesa" },
-        { bg: "#65A90A", border: "#063B2E", text: "#FFFFFF", nombreColor: "Verde Hoja" },
-        { bg: "#F6C400", border: "#063B2E", text: "#063B2E", nombreColor: "Amarillo Solar" },
-        { bg: "#F28C00", border: "#063B2E", text: "#063B2E", nombreColor: "Naranja Mariposa" },
-      ];
-
-      const operativos = usuarios.filter((u) => ["huertero", "reciclador"].includes(u.rol));
-      const colorEmpleado = (idEmp?: number | null) => {
-        if (!idEmp) return { bg: "#063B2E", border: "#063B2E", text: "#FFFFFF", nombreColor: "Verde Bosque" };
-        const idx = operativos.findIndex((u) => Number(u.id) === Number(idEmp));
-        return paletaEco[(idx >= 0 ? idx : Number(idEmp)) % paletaEco.length];
-      };
-
-      const mesesEs = [
-        "enero", "febrero", "marzo", "abril", "mayo", "junio",
-        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-      ];
-      const diasCortos = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
-      const parseFechaLocal = (iso: string) => {
-        const p = iso.split("-").map(Number);
-        if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return new Date();
-        return new Date(p[0], p[1] - 1, p[2]);
-      };
-
-      const toIsoLocal = (d: Date) => {
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${day}`;
-      };
-
-      const describirFecha = (iso: string) => {
-        const d = parseFechaLocal(iso);
-        return `${d.getDate()} de ${mesesEs[d.getMonth()]} de ${d.getFullYear()}`;
-      };
-
-      const fechaBase = parseFechaLocal(fechaCalendarioSel);
-      const diaSemana = fechaBase.getDay();
-      const inicioSemana = new Date(fechaBase);
-      inicioSemana.setDate(fechaBase.getDate() - diaSemana);
-
-      const diasSemana = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(inicioSemana);
-        d.setDate(inicioSemana.getDate() + i);
-        return {
-          iso: toIsoLocal(d),
-          etiqueta: diasCortos[d.getDay()],
-          numero: d.getDate(),
-        };
-      });
-
-      const franjasHoras = [
-        "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
-        "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"
-      ];
-
-      const coincideHora = (horaProg: string | undefined | null, franja: string) => {
-        const h = (horaProg || "").trim().toUpperCase().replace(/\s+/g, "");
-        const f = franja.trim().toUpperCase().replace(/\s+/g, "");
-        if (!h) return false;
-        if (h === f) return true;
-        const horaNum = f.split(":")[0];
-        const ampm = f.includes("AM") ? "AM" : "PM";
-        return h.startsWith(horaNum + ":") && h.endsWith(ampm);
-      };
-
-      const esPrivilegiado = ["admin", "coord_huerteros", "coord_recicladores"].includes(usuarioActual.rol);
-
-      const visitasVisibles = solicitudes.filter((s) => {
-        if (!s.fecha_programada) return false;
-        if (usuarioActual.rol === "coord_huerteros" && s.flujo !== "organico") return false;
-        if (usuarioActual.rol === "coord_recicladores" && s.flujo !== "reciclable") return false;
-        return true;
-      });
-
-      const visitasSemana = visitasVisibles.filter((s) =>
-        diasSemana.some((d) => d.iso === String(s.fecha_programada))
-      );
-
-      const descansosSemana = descansosCalendario.filter((desc) =>
-        diasSemana.some((d) => d.iso === desc.fecha)
-      );
-
-      const leerVisitaConReglas = (vis: any) => {
-        const encObj = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
-        const encNombre = encObj?.nombre || "Sin encargado asignado";
-        const esEncargado = Number(vis.recolector_id) === Number(usuarioActual.id);
-        const completo = esPrivilegiado || esEncargado;
-        const fechaTexto = describirFecha(String(vis.fecha_programada || fechaCalendarioSel));
-        const horaTexto = String(vis.hora_programada || vis.disponibilidad_horaria || "Horario por confirmar");
-
-        if (completo) {
-          const msg = `Visita ${vis.codigo}. Encargado: ${encNombre}. Día ${fechaTexto}, hora ${horaTexto}. Solicitante: ${vis.solicitante_nombre}, dirección: ${vis.solicitante_direccion}. Detalle: ${vis.descripcion || "recolección"}.`;
-          setMensajeSistema(msg);
-          hablar(msg);
-        } else {
-          const msg = `Visita el ${fechaTexto}, hora general ${horaTexto}. Encargado: ${encNombre}. Datos privados restringidos a quien no esté asignado.`;
-          setMensajeSistema(msg);
-          hablar(msg);
-        }
-      };
-
-      const totalVisitasSemana = visitasSemana.length;
-      const totalDescansosSemana = descansosSemana.length;
-
-      return (
-        <div className="flex flex-col lg:flex-row gap-4 bg-[#FFFFFF] p-3 rounded-2xl border border-[#0A9B70]">
-          {/* Columna principal: Agenda semanal tipo cuadrícula con colores EcoConecta */}
-          <div className="flex-1 flex flex-col gap-3 overflow-x-auto">
-            <div className="flex flex-wrap items-center justify-between gap-2">
+          <section className="bg-[#FFFFFF] p-4 rounded-2xl border-2 border-[#063B2E] shadow-sm flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#063B2E]/15 pb-2.5">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    const prev = new Date(fechaBase);
-                    prev.setDate(fechaBase.getDate() - 7);
-                    const iso = toIsoLocal(prev);
-                    setFechaCalendarioSel(iso);
-                    hablar(`Semana anterior. Fecha activa: ${describirFecha(iso)}.`);
+                    setPestanaActiva("gestion");
+                    hablar("Pestaña de gestión.");
                   }}
-                  className="px-2.5 py-1 rounded-lg border border-[#063B2E] bg-[#FFFFFF] text-[#063B2E] text-xs font-black"
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black border transition ${
+                    pestanaActiva === "gestion"
+                      ? "bg-[#063B2E] text-[#FFFFFF] border-[#063B2E]"
+                      : "bg-[#FFFFFF] text-[#063B2E] border-[#063B2E]/30"
+                  }`}
                 >
-                  &lt;
+                  📋 Gestión
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    const hoy = toIsoLocal(new Date());
-                    setFechaCalendarioSel(hoy);
-                    hablar(`Hoy, ${describirFecha(hoy)}.`);
-                  }}
-                  className="px-3 py-1 rounded-lg border border-[#063B2E] bg-[#168A2E] text-[#FFFFFF] text-xs font-black"
-                >
-                  Hoy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = new Date(fechaBase);
-                    next.setDate(fechaBase.getDate() + 7);
-                    const iso = toIsoLocal(next);
-                    setFechaCalendarioSel(iso);
-                    hablar(`Semana siguiente. Fecha activa: ${describirFecha(iso)}.`);
-                  }}
-                  className="px-2.5 py-1 rounded-lg border border-[#063B2E] bg-[#FFFFFF] text-[#063B2E] text-xs font-black"
-                >
-                  &gt;
-                </button>
-                <span className="text-sm font-black text-[#063B2E] ml-1">
-                  {mesesEs[fechaBase.getMonth()].charAt(0).toUpperCase() + mesesEs[fechaBase.getMonth()].slice(1)} {fechaBase.getFullYear()}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={fechaCalendarioSel}
-                  onChange={(e) => {
-                    const nueva = e.target.value;
-                    setFechaCalendarioSel(nueva);
-                    hablar(`Seleccionaste el ${describirFecha(nueva)}.`);
-                  }}
-                  className="p-1.5 rounded-lg border border-[#063B2E] text-xs font-bold text-[#063B2E]"
-                />
-                <button
-                  type="button"
-                  onClick={() => hablar(`Calendario de ${describirFecha(fechaCalendarioSel)}.`)}
-                  className="px-2.5 py-1.5 rounded-lg bg-[#F6C400] text-[#063B2E] border border-[#063B2E] text-xs font-black"
-                >
-                  🔊 Voz
-                </button>
-              </div>
-            </div>
-
-            {/* Encabezado de días de la semana */}
-            <div className="min-w-[680px] border border-[#063B2E]/20 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-8 bg-[#063B2E] text-[#FFFFFF] text-center text-xs font-black">
-                <div className="p-2 border-r border-[#FFFFFF]/20">Hora</div>
-                {diasSemana.map((d) => {
-                  const activa = d.iso === fechaCalendarioSel;
-                  return (
-                    <button
-                      key={d.iso}
-                      type="button"
-                      onClick={() => {
-                        setFechaCalendarioSel(d.iso);
-                        hablar(`${d.etiqueta}, ${describirFecha(d.iso)}.`);
-                      }}
-                      className={`p-2 border-r border-[#FFFFFF]/20 flex flex-col items-center justify-center ${
-                        activa ? "bg-[#168A2E]" : "hover:bg-[#0A9B70]"
-                      }`}
-                    >
-                      <span className="text-[10px] uppercase opacity-90">{d.etiqueta}</span>
-                      <span className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center font-black ${
-                        activa ? "bg-[#F6C400] text-[#063B2E]" : ""
-                      }`}>
-                        {d.numero}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Filas horarias */}
-              {franjasHoras.map((franja) => (
-                <div key={franja} className="grid grid-cols-8 border-t border-[#063B2E]/15 min-h-[58px] bg-[#FFFFFF]">
-                  <div className="p-1.5 text-[11px] font-bold text-[#063B2E] border-r border-[#063B2E]/15 flex items-start justify-end">
-                    {franja}
-                  </div>
-                  {diasSemana.map((dia) => {
-                    const celdasVisitas = visitasSemana.filter(
-                      (v) => String(v.fecha_programada) === dia.iso && coincideHora(v.hora_programada || v.disponibilidad_horaria, franja)
-                    );
-                    const celdasDescanso = descansosSemana.filter(
-                      (desc) => desc.fecha === dia.iso && coincideHora(desc.hora, franja)
-                    );
-
-                    return (
-                      <div
-                        key={`${dia.iso}-${franja}`}
-                        onClick={() => {
-                          if (celdasVisitas.length === 0 && celdasDescanso.length === 0) {
-                            setFechaCalendarioSel(dia.iso);
-                            hablar(`${dia.etiqueta} ${describirFecha(dia.iso)}, ${franja}.`);
-                          }
-                        }}
-                        className="p-1 border-r border-[#063B2E]/15 flex flex-col gap-1 cursor-pointer hover:bg-[#65A90A]/10"
-                      >
-                        {celdasVisitas.map((vis) => {
-                          const col = colorEmpleado(vis.recolector_id);
-                          const encObj = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
-                          const encNombre = encObj?.nombre || "Sin asignar";
-                          const esEnc = Number(vis.recolector_id) === Number(usuarioActual.id);
-                          const verTodo = esPrivilegiado || esEnc;
-
-                          return (
-                            <button
-                              key={vis.id}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                leerVisitaConReglas(vis);
-                              }}
-                              style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
-                              className="w-full text-left p-1.5 rounded-lg border text-[11px] font-extrabold leading-tight shadow-sm"
-                            >
-                              <div className="truncate">
-                                {verTodo ? `${vis.codigo} • ${vis.solicitante_nombre}` : `Visita • ${encNombre}`}
-                              </div>
-                              <div className="text-[10px] opacity-95 truncate">
-                                {encNombre} • {vis.hora_programada || franja}
-                              </div>
-                            </button>
-                          );
-                        })}
-
-                        {celdasDescanso.map((desc) => {
-                          const col = colorEmpleado(desc.usuarioId);
-                          return (
-                            <button
-                              key={desc.id}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const msg = `Descanso de ${desc.nombre} el ${describirFecha(desc.fecha)}, ${desc.hora}. ${desc.nota}`;
-                                setMensajeSistema(msg);
-                                hablar(msg);
-                              }}
-                              style={{ backgroundColor: "#FFFFFF", color: "#063B2E", borderColor: col.bg }}
-                              className="w-full text-left p-1 rounded-lg border-2 border-dashed text-[10px] font-black truncate"
-                            >
-                              🛋️ {desc.nombre}: {desc.hora}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Panel lateral tipo resumen con paleta EcoConecta */}
-          <aside className="w-full lg:w-72 bg-[#FFFFFF] border border-[#063B2E]/20 rounded-2xl p-3.5 flex flex-col gap-3">
-            <div className="flex items-center justify-between border-b border-[#063B2E]/15 pb-2">
-              <h3 className="text-sm font-black text-[#063B2E]">Resumen de Agenda</h3>
-              <span className="text-[11px] font-black px-2 py-0.5 rounded-full bg-[#65A90A] text-[#063B2E]">
-                {describirFecha(fechaCalendarioSel)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="p-2 rounded-xl bg-[#168A2E] text-[#FFFFFF]">
-                <p className="text-base font-black">{totalVisitasSemana}</p>
-                <p className="text-[10px] font-bold">Visitas semana</p>
-              </div>
-              <div className="p-2 rounded-xl bg-[#0A9B70] text-[#FFFFFF]">
-                <p className="text-base font-black">{totalDescansosSemana}</p>
-                <p className="text-[10px] font-bold">Descansos semana</p>
-              </div>
-            </div>
-
-            {/* Colores por empleado */}
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-black text-[#063B2E]">Empleados y colores</p>
-              {operativos.map((emp) => {
-                const col = colorEmpleado(emp.id);
-                return (
-                  <button
-                    key={emp.id}
-                    type="button"
-                    onClick={() => hablar(`${emp.nombre}, ${emp.rol}, color ${col.nombreColor}.`)}
-                    className="flex items-center justify-between text-xs font-bold text-[#063B2E] bg-[#FFFFFF] hover:bg-[#65A90A]/10 p-1.5 rounded-lg border border-[#063B2E]/15"
-                  >
-                    <span className="flex items-center gap-2 truncate">
-                      <span
-                        style={{ backgroundColor: col.bg, borderColor: col.border }}
-                        className="w-3.5 h-3.5 rounded-full border inline-block shrink-0"
-                      />
-                      <span className="truncate">{emp.nombre}</span>
-                    </span>
-                    <span className="text-[10px] font-black">{emp.rol === "huertero" ? "Huertero" : "Reciclador"}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Registrar descanso en el día */}
-            <div className="border-t border-[#063B2E]/15 pt-2.5 flex flex-col gap-2">
-              <p className="text-xs font-black text-[#063B2E]">🛋️ Poner descanso en el día</p>
-              <input
-                type="text"
-                value={horaDescansoInput}
-                onChange={(e) => setHoraDescansoInput(e.target.value)}
-                placeholder="Ej: 12:00 PM o 2:00 PM"
-                className="p-2 rounded-lg border border-[#063B2E] text-xs text-[#063B2E]"
-              />
-              <input
-                type="text"
-                value={notaDescansoInput}
-                onChange={(e) => setNotaDescansoInput(e.target.value)}
-                placeholder="Detalle del descanso"
-                className="p-2 rounded-lg border border-[#063B2E] text-xs text-[#063B2E]"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const item = {
-                    id: `${Date.now()}`,
-                    usuarioId: usuarioActual.id,
-                    nombre: usuarioActual.nombre,
-                    rol: usuarioActual.rol,
-                    fecha: fechaCalendarioSel,
-                    hora: horaDescansoInput.trim() || "12:00 PM",
-                    nota: notaDescansoInput.trim() || "Descanso del día",
-                  };
-                  setDescansosCalendario((prev) => [...prev, item]);
-                  const msg = `Descanso guardado para ${usuarioActual.nombre} el ${describirFecha(fechaCalendarioSel)} a las ${item.hora}.`;
-                  setMensajeSistema(msg);
-                  hablar(msg);
-                }}
-                className="w-full py-2 px-3 rounded-xl bg-[#F28C00] text-[#063B2E] border border-[#063B2E] text-xs font-black"
-              >
-                + Guardar descanso
-              </button>
-            </div>
-          </aside>
-        </div>
-      );
-    })()}
-            })}
-          </div>
-
-          {/* Selector de día, mes y año con voz */}
-          <div className="flex flex-wrap items-center gap-2 bg-[#FFFFFF] p-2.5 rounded-xl border border-[#0A9B70]">
-            <label className="text-xs font-black text-[#063B2E]">Día / Mes / Año:</label>
-            <input
-              type="date"
-              value={fechaCalendarioSel}
-              onChange={(e) => {
-                const nuevaF = e.target.value;
-                setFechaCalendarioSel(nuevaF);
-                const msg = `Fecha seleccionada: ${describirFechaCompleta(nuevaF)}.`;
-                setMensajeSistema(msg);
-                hablar(msg);
-              }}
-              className="p-1.5 rounded-lg border border-[#063B2E] text-xs font-bold text-[#063B2E]"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const msg = `Estás viendo el ${describirFechaCompleta(fechaCalendarioSel)}.`;
-                hablar(msg);
-              }}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-black bg-[#F6C400] text-[#063B2E] border border-[#063B2E]"
-            >
-              🔊 Escuchar fecha
-            </button>
-          </div>
-
-          {/* Registrar descansos en el día para empleados (y gestión) */}
-          {["huertero", "reciclador", "coord_huerteros", "coord_recicladores", "admin"].includes(usuarioActual.rol) && (
-            <div className="bg-[#FFFFFF] p-3 rounded-xl border border-[#65A90A] flex flex-col gap-2">
-              <p className="text-xs font-black text-[#063B2E]">🛋️ Registrar descanso en el día ({describirFechaCompleta(fechaCalendarioSel)})</p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={horaDescansoInput}
-                  onChange={(e) => setHoraDescansoInput(e.target.value)}
-                  placeholder="Franja de descanso (ej. 1:00 PM - 2:00 PM)"
-                  className="p-2 rounded-lg border border-[#063B2E] text-xs"
-                />
-                <input
-                  type="text"
-                  value={notaDescansoInput}
-                  onChange={(e) => setNotaDescansoInput(e.target.value)}
-                  placeholder="Motivo o nota de descanso"
-                  className="p-2 rounded-lg border border-[#063B2E] text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nuevoDesc = {
-                      id: `${Date.now()}`,
-                      usuarioId: usuarioActual.id,
-                      nombre: usuarioActual.nombre,
-                      rol: usuarioActual.rol,
-                      fecha: fechaCalendarioSel,
-                      hora: horaDescansoInput.trim() || "Descanso del día",
-                      nota: notaDescansoInput.trim() || "Descanso",
-                    };
-                    setDescansosCalendario((prev) => [...prev, nuevoDesc]);
-                    const msg = `Descanso registrado para ${usuarioActual.nombre} el ${describirFechaCompleta(fechaCalendarioSel)} en horario ${nuevoDesc.hora}.`;
+                    setPestanaActiva("calendario");
+                    const msg = "Calendario abierto. Toca cualquier visita, día o descanso para escucharlo con voz.";
                     setMensajeSistema(msg);
                     hablar(msg);
                   }}
-                  className="bg-[#168A2E] text-white font-black py-2 px-3 rounded-xl text-xs border border-[#063B2E]"
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black border transition ${
+                    pestanaActiva === "calendario"
+                      ? "bg-[#168A2E] text-[#FFFFFF] border-[#063B2E]"
+                      : "bg-[#FFFFFF] text-[#063B2E] border-[#168A2E]"
+                  }`}
                 >
-                  ➕ Guardar descanso
+                  📅 Calendario
                 </button>
               </div>
+              <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-[#F6C400] text-[#1D231F] border border-[#063B2E]">
+                Agenda EcoConecta
+              </span>
             </div>
-          )}
 
-          {/* Descansos del día */}
-          {descansosDia.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-black text-[#063B2E]">Descansos programados ({descansosDia.length})</p>
-              {descansosDia.map((d) => {
-                const col = colorPorEmpleado(d.usuarioId);
-                return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    onClick={() =>
-                      hablar(`Descanso de ${d.nombre}, el ${describirFechaCompleta(d.fecha)}, horario ${d.hora}. ${d.nota}`)
-                    }
-                    style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
-                    className="w-full text-left p-2.5 rounded-xl border text-xs font-bold flex justify-between items-center"
-                  >
-                    <span>🛋️ {d.nombre} ({d.rol}) • ⏰ {d.hora} • {d.nota}</span>
-                    <span>🔊</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+            {pestanaActiva === "calendario" && (() => {
+              const paletaEco = [
+                { bg: "#168A2E", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Eco" },
+                { bg: "#0A9B70", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Turquesa" },
+                { bg: "#65A90A", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Hoja" },
+                { bg: "#F6C400", border: "#063B2E", text: "#1D231F", nombre: "Amarillo Solar" },
+                { bg: "#F28C00", border: "#063B2E", text: "#1D231F", nombre: "Naranja Mariposa" },
+              ];
 
-          {/* Visitas del día con privacidad por asignación y lectura de voz */}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-black text-[#063B2E]">
-              Visitas del {describirFechaCompleta(fechaCalendarioSel)} ({eventosDia.length})
-            </p>
-            {eventosDia.length === 0 ? (
-              <p className="text-xs font-bold text-[#063B2E] bg-[#FFFFFF] p-3 rounded-xl border border-[#0A9B70]">
-                No hay visitas agendadas para el {describirFechaCompleta(fechaCalendarioSel)}.
-              </p>
-            ) : (
-              eventosDia.map((vis) => {
-                const encargadoObj = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
-                const nombreEncargado = encargadoObj?.nombre || "Sin encargado asignado";
-                const esEncargadoAsignado = Number(vis.recolector_id) === Number(usuarioActual.id);
-                const puedeVerDetalleCompleto = esPrivilegiado || esEncargadoAsignado;
-                const col = colorPorEmpleado(vis.recolector_id);
-                const fechaHabla = describirFechaCompleta(String(vis.fecha_programada || fechaCalendarioSel));
-                const horaGeneral = String(vis.hora_programada || vis.disponibilidad_horaria || "Horario por confirmar");
+              const operativos = usuarios.filter((u) => ["huertero", "reciclador"].includes(u.rol));
+              const colorDeEmpleado = (idEmp?: number | null) => {
+                if (!idEmp) return { bg: "#063B2E", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Bosque" };
+                const idx = operativos.findIndex((u) => Number(u.id) === Number(idEmp));
+                return paletaEco[(idx >= 0 ? idx : Number(idEmp)) % paletaEco.length];
+              };
 
-                const leerVisita = () => {
-                  if (puedeVerDetalleCompleto) {
-                    const texto = `Visita ${vis.codigo}. Encargado: ${nombreEncargado}. Fecha: ${fechaHabla}. Hora: ${horaGeneral}. Solicitante: ${vis.solicitante_nombre}, dirección: ${vis.solicitante_direccion}. Detalle: ${vis.descripcion || "recolección programada"}.`;
-                    setMensajeSistema(texto);
-                    hablar(texto);
-                  } else {
-                    const textoRestringido = `Visita agendada el ${fechaHabla}, hora general ${horaGeneral}. Encargado: ${nombreEncargado}. Detalles privados reservados al encargado asignado, coordinador o administrador.`;
-                    setMensajeSistema(textoRestringido);
-                    hablar(textoRestringido);
-                  }
-                };
+              const mesesNombre = [
+                "enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+              ];
+              const diasNombreCorto = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-                return (
-                  <button
-                    key={vis.id}
-                    type="button"
-                    onClick={leerVisita}
-                    style={{ borderColor: col.border }}
-                    className="w-full text-left p-3 rounded-xl border-2 bg-[#FFFFFF] flex flex-col gap-1.5"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span
-                        style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
-                        className="px-2.5 py-0.5 rounded-full text-[11px] font-black border"
-                      >
-                        Encargado: {nombreEncargado}
-                      </span>
-                      <span className="text-xs font-black text-[#063B2E]">
-                        📅 {fechaHabla} • ⏰ {horaGeneral} • 🔊 Audio
+              const parseIso = (iso: string) => {
+                const p = iso.split("-").map(Number);
+                if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return new Date();
+                return new Date(p[0], p[1] - 1, p[2]);
+              };
+
+              const formatIso = (d: Date) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                return `${y}-${m}-${day}`;
+              };
+
+              const fechaLarga = (iso: string) => {
+                const d = parseIso(iso);
+                return `${d.getDate()} de ${mesesNombre[d.getMonth()]} de ${d.getFullYear()}`;
+              };
+
+              const baseDate = parseIso(fechaCalendarioSel);
+              const startWeek = new Date(baseDate);
+              startWeek.setDate(baseDate.getDate() - baseDate.getDay());
+
+              const columnasDias =
+                modoCalendario === "dia"
+                  ? [{ iso: formatIso(baseDate), corto: diasNombreCorto[baseDate.getDay()], num: baseDate.getDate() }]
+                  : Array.from({ length: 7 }, (_, i) => {
+                      const d = new Date(startWeek);
+                      d.setDate(startWeek.getDate() + i);
+                      return { iso: formatIso(d), corto: diasNombreCorto[d.getDay()], num: d.getDate() };
+                    });
+
+              const horasGrid = [
+                "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+                "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
+              ];
+
+              const matchHora = (horaVal: string | undefined | null, slot: string) => {
+                const h = (horaVal || "").trim().toUpperCase().replace(/\s+/g, "");
+                const s = slot.trim().toUpperCase().replace(/\s+/g, "");
+                if (!h) return false;
+                if (h === s) return true;
+                const num = s.split(":")[0];
+                const suf = s.includes("AM") ? "AM" : "PM";
+                return h.startsWith(num + ":") && h.endsWith(suf);
+              };
+
+              const esAdminOCoord = ["admin", "coord_huerteros", "coord_recicladores"].includes(usuarioActual.rol);
+
+              const visitasPermitidas = solicitudes.filter((s) => {
+                if (!s.fecha_programada) return false;
+                if (usuarioActual.rol === "coord_huerteros" && s.flujo !== "organico") return false;
+                if (usuarioActual.rol === "coord_recicladores" && s.flujo !== "reciclable") return false;
+                return true;
+              });
+
+              const visitasEnRango = visitasPermitidas.filter((s) =>
+                columnasDias.some((c) => c.iso === String(s.fecha_programada))
+              );
+
+              const descansosEnRango = descansosCalendario.filter((d) =>
+                columnasDias.some((c) => c.iso === d.fecha)
+              );
+
+              const anunciarVisita = (vis: any) => {
+                const enc = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
+                const encNombre = enc?.nombre || "Sin encargado asignado";
+                const esAsignado = Number(vis.recolector_id) === Number(usuarioActual.id);
+                const accesoTotal = esAdminOCoord || esAsignado;
+                const fTxt = fechaLarga(String(vis.fecha_programada || fechaCalendarioSel));
+                const hTxt = String(vis.hora_programada || vis.disponibilidad_horaria || "Horario por confirmar");
+
+                if (accesoTotal) {
+                  const texto = `Visita ${vis.codigo}. Encargado: ${encNombre}. Día ${fTxt}, hora ${hTxt}. Cliente: ${vis.solicitante_nombre}, dirección: ${vis.solicitante_direccion}. Qué se recoge: ${vis.descripcion || "recolección"}.`;
+                  setMensajeSistema(texto);
+                  hablar(texto);
+                } else {
+                  const textoPrivado = `Horario ocupado el ${fTxt}, hora general ${hTxt}. Encargado: ${encNombre}. Nombre, dirección y material están ocultos porque no estás asignado a esta visita.`;
+                  setMensajeSistema(textoPrivado);
+                  hablar(textoPrivado);
+                }
+              };
+
+              // Construcción de cuadrícula mensual si modoCalendario === "mes"
+              const primerDiaMes = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+              const ultimoDiaMes = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+              const celdasMes: Array<{ iso: string; dia: number } | null> = [];
+              for (let b = 0; b < primerDiaMes.getDay(); b++) celdasMes.push(null);
+              for (let d = 1; d <= ultimoDiaMes.getDate(); d++) {
+                const dt = new Date(baseDate.getFullYear(), baseDate.getMonth(), d);
+                celdasMes.push({ iso: formatIso(dt), dia: d });
+              }
+
+              const totalEventos = Math.max(1, visitasEnRango.length + descansosEnRango.length);
+
+              return (
+                <div className="flex flex-col lg:flex-row gap-4 text-[#1D231F]">
+                  {/* Panel izquierdo: barra superior + cuadrícula estilo agenda */}
+                  <div className="flex-1 flex flex-col gap-3 overflow-x-auto">
+                    <div className="flex flex-wrap items-center justify-between gap-2 bg-[#FFFFFF] p-2 rounded-xl border border-[#063B2E]/20">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date(baseDate);
+                            d.setDate(baseDate.getDate() - (modoCalendario === "dia" ? 1 : 7));
+                            const iso = formatIso(d);
+                            setFechaCalendarioSel(iso);
+                            hablar(`Fecha: ${fechaLarga(iso)}.`);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-[#063B2E] text-xs font-black text-[#063B2E]"
+                        >
+                          &lt;
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const hoy = formatIso(new Date());
+                            setFechaCalendarioSel(hoy);
+                            hablar(`Hoy, ${fechaLarga(hoy)}.`);
+                          }}
+                          className="px-3 py-1 rounded-lg bg-[#168A2E] text-[#FFFFFF] border border-[#063B2E] text-xs font-black"
+                        >
+                          Hoy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date(baseDate);
+                            d.setDate(baseDate.getDate() + (modoCalendario === "dia" ? 1 : 7));
+                            const iso = formatIso(d);
+                            setFechaCalendarioSel(iso);
+                            hablar(`Fecha: ${fechaLarga(iso)}.`);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-[#063B2E] text-xs font-black text-[#063B2E]"
+                        >
+                          &gt;
+                        </button>
+                        <span className="text-sm font-black text-[#063B2E] ml-1 capitalize">
+                          {mesesNombre[baseDate.getMonth()]} {baseDate.getFullYear()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-[#FFFFFF] p-1 rounded-xl border border-[#063B2E]/20">
+                        {(["dia", "semana", "mes"] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              setModoCalendario(m);
+                              hablar(`Vista por ${m}.`);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-black capitalize ${
+                              modoCalendario === m
+                                ? "bg-[#063B2E] text-[#FFFFFF]"
+                                : "text-[#1D231F]"
+                            }`}
+                          >
+                            {m === "dia" ? "Día" : m === "semana" ? "Semana" : "Mes"}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          value={fechaCalendarioSel}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFechaCalendarioSel(val);
+                            hablar(`Seleccionaste el ${fechaLarga(val)}.`);
+                          }}
+                          className="p-1.5 rounded-lg border border-[#063B2E] text-xs font-bold text-[#1D231F]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => hablar(`Estás viendo ${fechaLarga(fechaCalendarioSel)}.`)}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#F6C400] text-[#1D231F] border border-[#063B2E] text-xs font-black"
+                        >
+                          🔊
+                        </button>
+                      </div>
+                    </div>
+
+                    {modoCalendario === "mes" ? (
+                      <div className="border border-[#063B2E]/25 rounded-xl overflow-hidden bg-[#FFFFFF]">
+                        <div className="grid grid-cols-7 bg-[#063B2E] text-[#FFFFFF] text-center text-xs font-black py-2">
+                          {diasNombreCorto.map((dn) => (
+                            <div key={dn}>{dn}</div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7">
+                          {celdasMes.map((cel, idx) => {
+                            if (!cel) return <div key={`empty-${idx}`} className="min-h-[78px] border border-[#063B2E]/10 bg-[#FFFFFF]" />;
+                            const vDia = visitasPermitidas.filter((v) => String(v.fecha_programada) === cel.iso);
+                            const dDia = descansosCalendario.filter((d) => d.fecha === cel.iso);
+                            const sel = cel.iso === fechaCalendarioSel;
+                            return (
+                              <div
+                                key={cel.iso}
+                                onClick={() => {
+                                  setFechaCalendarioSel(cel.iso);
+                                  hablar(`${fechaLarga(cel.iso)}: ${vDia.length} visitas y ${dDia.length} descansos.`);
+                                }}
+                                className={`min-h-[78px] p-1 border border-[#063B2E]/15 cursor-pointer flex flex-col gap-1 ${
+                                  sel ? "bg-[#F6C400]/20" : "bg-[#FFFFFF]"
+                                }`}
+                              >
+                                <span className={`text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center ${
+                                  sel ? "bg-[#063B2E] text-[#FFFFFF]" : "text-[#1D231F]"
+                                }`}>
+                                  {cel.dia}
+                                </span>
+                                {vDia.map((v) => {
+                                  const col = colorDeEmpleado(v.recolector_id);
+                                  const enc = usuarios.find((u) => Number(u.id) === Number(v.recolector_id))?.nombre || "Encargado";
+                                  return (
+                                    <button
+                                      key={v.id}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        anunciarVisita(v);
+                                      }}
+                                      style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                                      className="text-[10px] font-black px-1.5 py-0.5 rounded truncate border text-left"
+                                    >
+                                      {enc} • {v.hora_programada || "Hora"}
+                                    </button>
+                                  );
+                                })}
+                                {dDia.map((dc) => (
+                                  <span key={dc.id} className="text-[9px] font-black px-1 py-0.5 rounded bg-[#F28C00] text-[#1D231F] truncate">
+                                    🛋️ {dc.nombre}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-w-[540px] border border-[#063B2E]/25 rounded-xl overflow-hidden bg-[#FFFFFF]">
+                        <div
+                          className={`grid ${modoCalendario === "dia" ? "grid-cols-2" : "grid-cols-8"} bg-[#063B2E] text-[#FFFFFF] text-center text-xs font-black`}
+                        >
+                          <div className="p-2 border-r border-[#FFFFFF]/20">Hora</div>
+                          {columnasDias.map((c) => {
+                            const activa = c.iso === fechaCalendarioSel;
+                            return (
+                              <button
+                                key={c.iso}
+                                type="button"
+                                onClick={() => {
+                                  setFechaCalendarioSel(c.iso);
+                                  hablar(`${c.corto}, ${fechaLarga(c.iso)}.`);
+                                }}
+                                className={`p-2 border-r border-[#FFFFFF]/20 flex flex-col items-center ${
+                                  activa ? "bg-[#168A2E]" : "hover:bg-[#0A9B70]"
+                                }`}
+                              >
+                                <span className="text-[10px] uppercase">{c.corto}</span>
+                                <span className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center font-black ${
+                                  activa ? "bg-[#F6C400] text-[#1D231F]" : ""
+                                }`}>
+                                  {c.num}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {horasGrid.map((slot) => (
+                          <div
+                            key={slot}
+                            className={`grid ${modoCalendario === "dia" ? "grid-cols-2" : "grid-cols-8"} border-t border-[#063B2E]/15 min-h-[54px]`}
+                          >
+                            <div className="p-1.5 text-[11px] font-bold text-[#063B2E] border-r border-[#063B2E]/15 flex items-start justify-end">
+                              {slot}
+                            </div>
+                            {columnasDias.map((c) => {
+                              const itemsVis = visitasEnRango.filter(
+                                (v) => String(v.fecha_programada) === c.iso && matchHora(v.hora_programada || v.disponibilidad_horaria, slot)
+                              );
+                              const itemsDesc = descansosEnRango.filter(
+                                (dc) => dc.fecha === c.iso && matchHora(dc.hora, slot)
+                              );
+                              return (
+                                <div
+                                  key={`${c.iso}-${slot}`}
+                                  onClick={() => {
+                                    setFechaCalendarioSel(c.iso);
+                                    hablar(`${c.corto}, ${fechaLarga(c.iso)}, ${slot}.`);
+                                  }}
+                                  className="p-1 border-r border-[#063B2E]/15 flex flex-col gap-1 cursor-pointer hover:bg-[#65A90A]/10"
+                                >
+                                  {itemsVis.map((vis) => {
+                                    const col = colorDeEmpleado(vis.recolector_id);
+                                    const encNombre = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id))?.nombre || "Sin asignar";
+                                    const esAsig = Number(vis.recolector_id) === Number(usuarioActual.id);
+                                    const verTodo = esAdminOCoord || esAsig;
+                                    return (
+                                      <button
+                                        key={vis.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          anunciarVisita(vis);
+                                        }}
+                                        style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                                        className="w-full text-left p-1.5 rounded-lg border text-[11px] font-black leading-tight"
+                                      >
+                                        <div className="truncate">
+                                          {verTodo ? `${vis.codigo} • ${vis.solicitante_nombre}` : `Ocupado • ${encNombre}`}
+                                        </div>
+                                        <div className="text-[10px] opacity-95 truncate">
+                                          {encNombre} • {vis.hora_programada || slot}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+
+                                  {itemsDesc.map((dc) => {
+                                    const col = colorDeEmpleado(dc.usuarioId);
+                                    return (
+                                      <button
+                                        key={dc.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const m = `Descanso de ${dc.nombre} el ${fechaLarga(dc.fecha)} a las ${dc.hora}. ${dc.nota}.`;
+                                          setMensajeSistema(m);
+                                          hablar(m);
+                                        }}
+                                        style={{ backgroundColor: "#FFFFFF", color: "#1D231F", borderColor: col.bg }}
+                                        className="w-full text-left p-1 rounded-lg border-2 border-dashed text-[10px] font-black truncate"
+                                      >
+                                        🛋️ {dc.nombre} ({dc.hora})
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Panel lateral estilo Time Insights con paleta EcoConecta */}
+                  <aside className="w-full lg:w-72 bg-[#FFFFFF] border border-[#063B2E]/25 rounded-2xl p-3.5 flex flex-col gap-3">
+                    <div className="flex items-center justify-between border-b border-[#063B2E]/15 pb-2">
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-[#0A9B70]">{fechaLarga(fechaCalendarioSel)}</p>
+                        <h3 className="text-sm font-black text-[#063B2E]">Desglose por Color</h3>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#65A90A] text-[#FFFFFF]">
+                        {visitasEnRango.length} visitas
                       </span>
                     </div>
 
-                    {puedeVerDetalleCompleto ? (
-                      <div className="text-xs text-[#063B2E] flex flex-col gap-0.5">
-                        <p className="font-black">Visita {vis.codigo} • {vis.solicitante_nombre}</p>
-                        <p className="font-bold">📍 {vis.solicitante_direccion}</p>
-                        {vis.descripcion && <p>📦 Qué se recoge: {vis.descripcion}</p>}
+                    {/* Anillo visual con colores EcoConecta */}
+                    <div className="flex items-center justify-center py-1">
+                      <div className="relative w-28 h-28 rounded-full border-[12px] border-[#168A2E] flex flex-col items-center justify-center">
+                        <div className="absolute inset-[-12px] rounded-full border-[12px] border-t-[#0A9B70] border-r-[#65A90A] border-b-[#F6C400] border-l-[#F28C00] opacity-85" />
+                        <span className="text-base font-black text-[#063B2E]">{visitasEnRango.length}h</span>
+                        <span className="text-[10px] font-bold text-[#1D231F]">Agendadas</span>
                       </div>
-                    ) : (
-                      <p className="text-xs font-bold text-[#063B2E]">
-                        🔒 Solo fecha, mes y hora general ({fechaHabla} • {horaGeneral}). Nombre, dirección y recolección visibles para el encargado asignado, coordinador o administrador.
-                      </p>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      );
-    })()}
-  </section>
-)}
-{esAdmin && (() => {
+                    </div>
+
+                    {/* Lista de empleados diferenciados por color */}
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs font-black text-[#063B2E]">Equipo por color</p>
+                      {operativos.map((emp) => {
+                        const col = colorDeEmpleado(emp.id);
+                        const cant = visitasEnRango.filter((v) => Number(v.recolector_id) === Number(emp.id)).length;
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => hablar(`${emp.nombre}, ${emp.rol}, color ${col.nombre}, ${cant} visitas.`)}
+                            className="flex items-center justify-between text-xs font-bold p-1.5 rounded-lg border border-[#063B2E]/15 bg-[#FFFFFF]"
+                          >
+                            <span className="flex items-center gap-2 truncate">
+                              <span
+                                style={{ backgroundColor: col.bg, borderColor: col.border }}
+                                className="w-3.5 h-3.5 rounded-full border inline-block shrink-0"
+                              />
+                              <span className="truncate text-[#1D231F]">{emp.nombre}</span>
+                            </span>
+                            <span className="text-[11px] font-black text-[#063B2E]">{cant} vis</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Registrar descanso en el día */}
+                    <div className="border-t border-[#063B2E]/15 pt-2.5 flex flex-col gap-2">
+                      <p className="text-xs font-black text-[#063B2E]">🛋️ Descanso en el día</p>
+                      <input
+                        type="text"
+                        value={horaDescansoInput}
+                        onChange={(e) => setHoraDescansoInput(e.target.value)}
+                        placeholder="Hora (ej. 12:00 PM)"
+                        className="p-2 rounded-lg border border-[#063B2E] text-xs text-[#1D231F]"
+                      />
+                      <input
+                        type="text"
+                        value={notaDescansoInput}
+                        onChange={(e) => setNotaDescansoInput(e.target.value)}
+                        placeholder="Nota del descanso"
+                        className="p-2 rounded-lg border border-[#063B2E] text-xs text-[#1D231F]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nuevoDesc = {
+                            id: `${Date.now()}`,
+                            usuarioId: usuarioActual.id,
+                            nombre: usuarioActual.nombre,
+                            rol: usuarioActual.rol,
+                            fecha: fechaCalendarioSel,
+                            hora: horaDescansoInput.trim() || "12:00 PM",
+                            nota: notaDescansoInput.trim() || "Descanso del día",
+                          };
+                          setDescansosCalendario((prev) => [...prev, nuevoDesc]);
+                          const msg = `Descanso registrado para ${usuarioActual.nombre} el ${fechaLarga(fechaCalendarioSel)} a las ${nuevoDesc.hora}.`;
+                          setMensajeSistema(msg);
+                          hablar(msg);
+                        }}
+                        className="w-full py-2 px-3 rounded-xl bg-[#F28C00] text-[#1D231F] border border-[#063B2E] text-xs font-black"
+                      >
+                        + Guardar descanso
+                      </button>
+                    </div>
+                  </aside>
+                </div>
+              );
+            })()}
+          </section>
+        )}
+
+        {esAdmin && (() => {
           const solPendientes = solicitudes.filter(
             (s) => s.estado !== "recolectada" && s.estado !== "cancelada"
           );
