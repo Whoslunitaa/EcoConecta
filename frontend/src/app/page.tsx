@@ -255,9 +255,11 @@ export default function EcoConectaPage() {
     };
 
     return texto
-      // 1. Convertir emojis de numeros del menu (1️⃣, 2️⃣, 3️⃣, 4️⃣, etc.) a palabras claras
-      .replace(/([0-9])\uFE0F?\u20E3/g, (_, d) => `opción ${digitosMenu[d] || d}, `)
-      .replace(/([①②③④⑤❶❷❸❹❺])/g, (_, d) => `opción ${digitosMenu[d] || d}, `)
+            // 1. Convertir TODAS las variantes de emojis numéricos (1️⃣-4️⃣) a palabras claras
+      .replace(/([0-9])[\uFE0E\uFE0F\s]*\u20E3[\uFE0E\uFE0F]*/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
+      .replace(/([0-9])ï¸âƒ£/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
+      .replace(/([0-9])âƒ£/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
+      .replace(/([①②③④⑤❶❷❸❹❺])/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
       // 2. Eliminar todos los demas emojis decorativos
       .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0F\u200D\u20E3]/g, " ")
       // 3. Quitar asteriscos y flechas
