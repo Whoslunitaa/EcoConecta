@@ -110,6 +110,11 @@ export default function EcoConectaPage() {
   const [vistaPublica, setVistaPublica] = useState<"pedir" | "aprender" | "whatsapp" | "registro" | "login">("pedir");
   const [vistaCoord, setVistaCoord] = useState<"bandeja" | "equipo" | "config">("bandeja");
   const [filtroAdminSol, setFiltroAdminSol] = useState<"pendientes" | "todas" | "completadas">("pendientes");
+  const [pestanaActiva, setPestanaActiva] = useState<"gestion" | "calendario">("gestion");
+  const [fechaCalendarioSel, setFechaCalendarioSel] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [descansosCalendario, setDescansosCalendario] = useState<Array<{ id: string; usuarioId: number; nombre: string; rol: string; fecha: string; hora: string; nota: string }>>([]);
+  const [horaDescansoInput, setHoraDescansoInput] = useState<string>("12:30 PM - 1:30 PM");
+  const [notaDescansoInput, setNotaDescansoInput] = useState<string>("Descanso del día");
   const [subFiltroCategoria, setSubFiltroCategoria] = useState<"todo" | "recoleccion" | "equipo">("todo");
   const [subFiltroFlujo, setSubFiltroFlujo] = useState<"todos" | "huertero" | "reciclador">("todos");
 
@@ -170,6 +175,11 @@ export default function EcoConectaPage() {
   const [ubicacionGps, setUbicacionGps] = useState<string>("");
   const [grabandoCampo, setGrabandoCampo] = useState<"direccion" | "nota" | null>(null);
   const [mensajeSistema, setMensajeSistema] = useState<string>("");
+  useEffect(() => {
+    if (mensajeSistema && mensajeSistema.trim().length > 0) {
+      hablar(mensajeSistema); // auto-lectura
+    }
+  }, [mensajeSistema]);
   const [linkWaDirecto, setLinkWaDirecto] = useState<string>("");
   const [linkWaSecundario, setLinkWaSecundario] = useState<string>("");
 
@@ -789,6 +799,24 @@ export default function EcoConectaPage() {
     const recId = recolectorSel[solId] || solActual?.recolector_id;
     const fecha = fechaSel[solId] || solActual?.fecha_programada || new Date().toISOString().slice(0, 10);
     const hora = (horaSel[solId] || solActual?.hora_programada || solActual?.disponibilidad_horaria || "").trim();
+    const normalizarHora = (h: string) => h.trim().toLowerCase().replace(/\s+/g, "");
+    const normalizarFecha = (f: string) => f.trim();
+    const conflicto = solicitudes.find(
+      (x) =>
+        x.id !== solId &&
+        x.estado !== "cancelada" &&
+        Number(x.recolector_id) === Number(recId) &&
+        normalizarFecha(String(x.fecha_programada || "")) === normalizarFecha(String(fecha)) &&
+        normalizarHora(String(x.hora_programada || "")) === normalizarHora(String(hora)) &&
+        normalizarHora(String(hora)) !== ""
+    );
+    if (conflicto) {
+      const encargadoNombre = usuarios.find((u) => Number(u.id) === Number(recId))?.nombre || "este encargado";
+      const msgConflicto = `No es posible agendar a ${encargadoNombre} el ${fecha} a las ${hora}; ya tiene una visita programada en ese mismo día y hora. Elige otro horario o a otro integrante.`;
+      setMensajeSistema(msgConflicto);
+      hablar(msgConflicto);
+      return;
+    }
 
     if (!recId || !fecha || !hora) {
       const m = "Selecciona el encargado aprobado, el día y la hora.";
@@ -2112,7 +2140,7 @@ export default function EcoConectaPage() {
 
         {esRecolector && (
           <section className="flex flex-col gap-4">
-            <h2 className="font-black text-lg">Mis Tareas Asignadas (Vista Limitada)</h2>
+            <h2 className="font-black text-lg">Mis Tareas Asignadas </h2>
             {solicitudes.length === 0 && (
               <p className="bg-white p-4 rounded-2xl border text-sm text-stone-600">
                 Aún no tienes tareas asignadas. Cuando el Coordinador te programe una recolección, te enviará la ubicación, el día y la hora a tu WhatsApp (+{usuarioActual?.telefono}).
@@ -2156,7 +2184,268 @@ export default function EcoConectaPage() {
           </section>
         )}
 
-        {esAdmin && (() => {
+        {usuarioActual && ["admin", "coord_huerteros", "coord_recicladores", "huertero", "reciclador"].includes(usuarioActual.rol) && (
+  <section className="bg-white p-4 rounded-2xl border-2 border-[#0A9B70] flex flex-col gap-3">
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            setPestanaActiva("gestion");
+            hablar("Pestaña de gestión activa.");
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-black border ${
+            pestanaActiva === "gestion"
+              ? "bg-[#063B2E] text-white border-[#063B2E]"
+              : "bg-[#FFFFFF] text-[#063B2E] border-[#0A9B70]"
+          }`}
+        >
+          📋 Gestión
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setPestanaActiva("calendario");
+            const msgCal = "Pestaña calendario abierta. Selecciona una fecha o visita para escuchar día, mes, año y encargado.";
+            setMensajeSistema(msgCal);
+            hablar(msgCal);
+          }}
+          className={`px-3 py-1.5 rounded-xl text-xs font-black border ${
+            pestanaActiva === "calendario"
+              ? "bg-[#168A2E] text-white border-[#063B2E]"
+              : "bg-[#FFFFFF] text-[#063B2E] border-[#168A2E]"
+          }`}
+        >
+          📅 Calendario
+        </button>
+      </div>
+    </div>
+
+    {pestanaActiva === "calendario" && (() => {
+      const paletaEmpleados = [
+        { bg: "#168A2E", text: "#FFFFFF", border: "#063B2E", etiqueta: "Verde Eco" },
+        { bg: "#0A9B70", text: "#FFFFFF", border: "#063B2E", etiqueta: "Verde Turquesa" },
+        { bg: "#65A90A", text: "#FFFFFF", border: "#063B2E", etiqueta: "Verde Hoja" },
+        { bg: "#F6C400", text: "#111827", border: "#063B2E", etiqueta: "Amarillo Solar" },
+        { bg: "#F28C00", text: "#111827", border: "#063B2E", etiqueta: "Naranja Mariposa" },
+      ];
+      const operativos = usuarios.filter((u) => ["huertero", "reciclador"].includes(u.rol));
+      const colorPorEmpleado = (idEmpleado?: number | null) => {
+        if (!idEmpleado) return { bg: "#063B2E", text: "#FFFFFF", border: "#063B2E", etiqueta: "Por asignar" };
+        const idx = operativos.findIndex((u) => Number(u.id) === Number(idEmpleado));
+        return paletaEmpleados[(idx >= 0 ? idx : Number(idEmpleado)) % paletaEmpleados.length];
+      };
+
+      const describirFechaCompleta = (isoDate: string) => {
+        const partes = isoDate.split("-");
+        if (partes.length !== 3) return isoDate;
+        const anio = partes[0];
+        const meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+        const mesIdx = Math.max(0, Math.min(11, Number(partes[1]) - 1));
+        const dia = Number(partes[2]);
+        return `${dia} de ${meses[mesIdx]} de ${anio}`;
+      };
+
+      const esPrivilegiado = ["admin", "coord_huerteros", "coord_recicladores"].includes(usuarioActual.rol);
+
+      const eventosDia = solicitudes.filter((s) => {
+        const fSol = String(s.fecha_programada || "");
+        if (!fSol) return false;
+        if (usuarioActual.rol === "coord_huerteros" && s.flujo !== "organico") return false;
+        if (usuarioActual.rol === "coord_recicladores" && s.flujo !== "reciclable") return false;
+        return fSol === fechaCalendarioSel;
+      });
+
+      const descansosDia = descansosCalendario.filter((d) => d.fecha === fechaCalendarioSel);
+
+      return (
+        <div className="flex flex-col gap-3">
+          {/* Leyenda de colores por empleado */}
+          <div className="flex flex-wrap gap-1.5">
+            {operativos.map((emp) => {
+              const col = colorPorEmpleado(emp.id);
+              return (
+                <button
+                  key={emp.id}
+                  type="button"
+                  onClick={() => hablar(`Empleado ${emp.nombre}, rol ${emp.rol}, color ${col.etiqueta}.`)}
+                  style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-black border"
+                >
+                  {emp.nombre} ({emp.rol})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Selector de día, mes y año con voz */}
+          <div className="flex flex-wrap items-center gap-2 bg-[#FFFFFF] p-2.5 rounded-xl border border-[#0A9B70]">
+            <label className="text-xs font-black text-[#063B2E]">Día / Mes / Año:</label>
+            <input
+              type="date"
+              value={fechaCalendarioSel}
+              onChange={(e) => {
+                const nuevaF = e.target.value;
+                setFechaCalendarioSel(nuevaF);
+                const msg = `Fecha seleccionada: ${describirFechaCompleta(nuevaF)}.`;
+                setMensajeSistema(msg);
+                hablar(msg);
+              }}
+              className="p-1.5 rounded-lg border border-[#063B2E] text-xs font-bold text-[#063B2E]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const msg = `Estás viendo el ${describirFechaCompleta(fechaCalendarioSel)}.`;
+                hablar(msg);
+              }}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-black bg-[#F6C400] text-[#063B2E] border border-[#063B2E]"
+            >
+              🔊 Escuchar fecha
+            </button>
+          </div>
+
+          {/* Registrar descansos en el día para empleados (y gestión) */}
+          {["huertero", "reciclador", "coord_huerteros", "coord_recicladores", "admin"].includes(usuarioActual.rol) && (
+            <div className="bg-[#FFFFFF] p-3 rounded-xl border border-[#65A90A] flex flex-col gap-2">
+              <p className="text-xs font-black text-[#063B2E]">🛋️ Registrar descanso en el día ({describirFechaCompleta(fechaCalendarioSel)})</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  value={horaDescansoInput}
+                  onChange={(e) => setHoraDescansoInput(e.target.value)}
+                  placeholder="Franja de descanso (ej. 1:00 PM - 2:00 PM)"
+                  className="p-2 rounded-lg border border-[#063B2E] text-xs"
+                />
+                <input
+                  type="text"
+                  value={notaDescansoInput}
+                  onChange={(e) => setNotaDescansoInput(e.target.value)}
+                  placeholder="Motivo o nota de descanso"
+                  className="p-2 rounded-lg border border-[#063B2E] text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nuevoDesc = {
+                      id: `${Date.now()}`,
+                      usuarioId: usuarioActual.id,
+                      nombre: usuarioActual.nombre,
+                      rol: usuarioActual.rol,
+                      fecha: fechaCalendarioSel,
+                      hora: horaDescansoInput.trim() || "Descanso del día",
+                      nota: notaDescansoInput.trim() || "Descanso",
+                    };
+                    setDescansosCalendario((prev) => [...prev, nuevoDesc]);
+                    const msg = `Descanso registrado para ${usuarioActual.nombre} el ${describirFechaCompleta(fechaCalendarioSel)} en horario ${nuevoDesc.hora}.`;
+                    setMensajeSistema(msg);
+                    hablar(msg);
+                  }}
+                  className="bg-[#168A2E] text-white font-black py-2 px-3 rounded-xl text-xs border border-[#063B2E]"
+                >
+                  ➕ Guardar descanso
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Descansos del día */}
+          {descansosDia.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-black text-[#063B2E]">Descansos programados ({descansosDia.length})</p>
+              {descansosDia.map((d) => {
+                const col = colorPorEmpleado(d.usuarioId);
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() =>
+                      hablar(`Descanso de ${d.nombre}, el ${describirFechaCompleta(d.fecha)}, horario ${d.hora}. ${d.nota}`)
+                    }
+                    style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                    className="w-full text-left p-2.5 rounded-xl border text-xs font-bold flex justify-between items-center"
+                  >
+                    <span>🛋️ {d.nombre} ({d.rol}) • ⏰ {d.hora} • {d.nota}</span>
+                    <span>🔊</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Visitas del día con privacidad por asignación y lectura de voz */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-black text-[#063B2E]">
+              Visitas del {describirFechaCompleta(fechaCalendarioSel)} ({eventosDia.length})
+            </p>
+            {eventosDia.length === 0 ? (
+              <p className="text-xs font-bold text-[#063B2E] bg-[#FFFFFF] p-3 rounded-xl border border-[#0A9B70]">
+                No hay visitas agendadas para el {describirFechaCompleta(fechaCalendarioSel)}.
+              </p>
+            ) : (
+              eventosDia.map((vis) => {
+                const encargadoObj = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
+                const nombreEncargado = encargadoObj?.nombre || "Sin encargado asignado";
+                const esEncargadoAsignado = Number(vis.recolector_id) === Number(usuarioActual.id);
+                const puedeVerDetalleCompleto = esPrivilegiado || esEncargadoAsignado;
+                const col = colorPorEmpleado(vis.recolector_id);
+                const fechaHabla = describirFechaCompleta(String(vis.fecha_programada || fechaCalendarioSel));
+                const horaGeneral = String(vis.hora_programada || vis.disponibilidad_horaria || "Horario por confirmar");
+
+                const leerVisita = () => {
+                  if (puedeVerDetalleCompleto) {
+                    const texto = `Visita ${vis.codigo}. Encargado: ${nombreEncargado}. Fecha: ${fechaHabla}. Hora: ${horaGeneral}. Solicitante: ${vis.solicitante_nombre}, dirección: ${vis.solicitante_direccion}. Detalle: ${vis.descripcion || "recolección programada"}.`;
+                    setMensajeSistema(texto);
+                    hablar(texto);
+                  } else {
+                    const textoRestringido = `Visita agendada el ${fechaHabla}, hora general ${horaGeneral}. Encargado: ${nombreEncargado}. Detalles privados reservados al encargado asignado, coordinador o administrador.`;
+                    setMensajeSistema(textoRestringido);
+                    hablar(textoRestringido);
+                  }
+                };
+
+                return (
+                  <button
+                    key={vis.id}
+                    type="button"
+                    onClick={leerVisita}
+                    style={{ borderColor: col.border }}
+                    className="w-full text-left p-3 rounded-xl border-2 bg-[#FFFFFF] flex flex-col gap-1.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span
+                        style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                        className="px-2.5 py-0.5 rounded-full text-[11px] font-black border"
+                      >
+                        Encargado: {nombreEncargado}
+                      </span>
+                      <span className="text-xs font-black text-[#063B2E]">
+                        📅 {fechaHabla} • ⏰ {horaGeneral} • 🔊 Audio
+                      </span>
+                    </div>
+
+                    {puedeVerDetalleCompleto ? (
+                      <div className="text-xs text-[#063B2E] flex flex-col gap-0.5">
+                        <p className="font-black">Visita {vis.codigo} • {vis.solicitante_nombre}</p>
+                        <p className="font-bold">📍 {vis.solicitante_direccion}</p>
+                        {vis.descripcion && <p>📦 Qué se recoge: {vis.descripcion}</p>}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-bold text-[#063B2E]">
+                        🔒 Solo fecha, mes y hora general ({fechaHabla} • {horaGeneral}). Nombre, dirección y recolección visibles para el encargado asignado, coordinador o administrador.
+                      </p>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      );
+    })()}
+  </section>
+)}
+{esAdmin && (() => {
           const solPendientes = solicitudes.filter(
             (s) => s.estado !== "recolectada" && s.estado !== "cancelada"
           );
@@ -2869,3 +3158,4 @@ export default function EcoConectaPage() {
     </main>
   );
 }
+
