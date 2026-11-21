@@ -813,8 +813,29 @@ export default function EcoConectaPage() {
       const limpio = v.trim().toUpperCase().replace(/\s+/g, "");
       const m = limpio.match(/^0?(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
       if (!m) return limpio;
-      return `${m[1]}:${m[2] || "00"}${m[3] || ""}`;
+      let hNum = Number(m[1]);
+      const mins = m[2] || "00";
+      let suf = m[3] || "";
+      if (!suf) {
+        if (hNum >= 13 && hNum <= 23) {
+          hNum -= 12;
+          suf = "PM";
+        } else if (hNum === 12) {
+          suf = "PM";
+        } else if (hNum >= 6 && hNum <= 11) {
+          suf = "AM";
+        } else if (hNum >= 1 && hNum <= 5) {
+          suf = "PM";
+        }
+      }
+      return `${hNum}:${mins}${suf}`;
     };
+    if (!hora) {
+      const avisoSinHora = "Selecciona una hora disponible en el menú desplegable antes de programar.";
+      setMensajeSistema(avisoSinHora);
+      hablar(avisoSinHora);
+      return;
+    }
     const conflictoHorario = solicitudes.find(
       (s) =>
         s.id !== solId &&
@@ -1360,6 +1381,111 @@ export default function EcoConectaPage() {
     </div>
   );
 
+  const renderSelectorHoraDisponible = (s: (typeof solicitudes)[number], extraClass = "text-sm") => {
+    const fechaObj = (fechaSel[s.id] || s.fecha_programada || new Date().toISOString().slice(0, 10)).trim();
+    const empIdObj = Number(recolectorSel[s.id] || s.recolector_id || 0);
+    const empObj = usuarios.find((u) => Number(u.id) === empIdObj);
+    const empNombre = empObj?.nombre || "el encargado";
+
+    const normHoraMenu = (v: string) => {
+      const limpio = (v || "").trim().toUpperCase().replace(/\s+/g, "");
+      const m = limpio.match(/^0?(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+      if (!m) return limpio;
+      let hNum = Number(m[1]);
+      const mins = m[2] || "00";
+      let suf = m[3] || "";
+      if (!suf) {
+        if (hNum >= 13 && hNum <= 23) {
+          hNum -= 12;
+          suf = "PM";
+        } else if (hNum === 12) {
+          suf = "PM";
+        } else if (hNum >= 6 && hNum <= 11) {
+          suf = "AM";
+        } else if (hNum >= 1 && hNum <= 5) {
+          suf = "PM";
+        }
+      }
+      return `${hNum}:${mins}${suf}`;
+    };
+
+    const estaOcupada = (horaCandidata: string) => {
+      if (!empIdObj || !horaCandidata) return false;
+      const clave = normHoraMenu(horaCandidata);
+      const ocupadaVisita = solicitudes.some(
+        (item) =>
+          item.id !== s.id &&
+          item.estado !== "cancelada" &&
+          Number(item.recolector_id) === empIdObj &&
+          String(item.fecha_programada || "").trim() === fechaObj &&
+          normHoraMenu(String(item.hora_programada || "")) === clave
+      );
+      const ocupadaDescanso = descansosCalendario.some(
+        (d) =>
+          Number(d.usuarioId) === empIdObj &&
+          String(d.fecha || "").trim() === fechaObj &&
+          normHoraMenu(String(d.hora || "")) === clave
+      );
+      return ocupadaVisita || ocupadaDescanso;
+    };
+
+    const horasManana = ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM"];
+    const horasTarde = ["1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"];
+
+    const libresManana = horasManana.filter((h) => !estaOcupada(h));
+    const libresTarde = horasTarde.filter((h) => !estaOcupada(h));
+    const totalLibres = libresManana.length + libresTarde.length;
+
+    const valorCrudo = (horaSel[s.id] ?? s.hora_programada ?? "").trim();
+    const valorValido = valorCrudo && !estaOcupada(valorCrudo) ? valorCrudo : "";
+    const esHoraPersonalizada =
+      valorValido !== "" &&
+      ![...libresManana, ...libresTarde].some((h) => normHoraMenu(h) === normHoraMenu(valorValido));
+
+    return (
+      <select
+        className={`p-2 rounded-lg border-2 border-[#168A2E] bg-[#FFFFFF] font-bold text-[#1D231F] ${extraClass}`}
+        value={valorValido}
+        onFocus={() =>
+          hablar(
+            empIdObj
+              ? `Menú de horas disponibles para ${empNombre} el ${fechaObj}. Hay ${totalLibres} opciones libres.`
+              : `Menú de horas disponibles para el ${fechaObj}.`
+          )
+        }
+        onChange={(e) => {
+          const val = e.target.value;
+          setHoraSel({ ...horaSel, [s.id]: val });
+          if (val) {
+            hablar(`Hora asignada: ${val} para ${empNombre} el ${fechaObj}.`);
+          }
+        }}
+      >
+        <option value="">
+          {totalLibres === 0 ? "🚫 Sin horas disponibles este día" : "⏰ Selecciona hora disponible..."}
+        </option>
+        {esHoraPersonalizada && <option value={valorValido}>{valorValido}</option>}
+        {libresManana.length > 0 && (
+          <optgroup label="☀️ Mañana (8:00 AM - 12:00 PM)">
+            {libresManana.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {libresTarde.length > 0 && (
+          <optgroup label="🌤️ Tarde (1:00 PM - 5:00 PM)">
+            {libresTarde.map((h) => (
+              <option key={h} value={h}>
+                {h}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
+    );
+  };
   const renderDisponibilidadDiaCoord = (s: (typeof solicitudes)[number]) => {
     const fechaObj = (fechaSel[s.id] || s.fecha_programada || new Date().toISOString().slice(0, 10)).trim();
     const empIdObj = Number(recolectorSel[s.id] || s.recolector_id || 0);
