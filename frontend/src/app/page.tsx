@@ -189,46 +189,119 @@ export default function EcoConectaPage() {
   const [nuevoFlujoEdu, setNuevoFlujoEdu] = useState<string>("organico");
   const [nuevoTextoEdu, setNuevoTextoEdu] = useState<string>("");
 
+  const DICCIONARIO_NUMEROS: Record<number, string> = (() => {
+    const dict: Record<number, string> = {
+      0: "cero", 1: "uno", 2: "dos", 3: "tres", 4: "cuatro",
+      5: "cinco", 6: "seis", 7: "siete", 8: "ocho", 9: "nueve",
+      10: "diez", 11: "once", 12: "doce", 13: "trece", 14: "catorce",
+      15: "quince", 16: "dieciséis", 17: "diecisiete", 18: "dieciocho", 19: "diecinueve",
+      20: "veinte", 21: "veintiuno", 22: "veintidós", 23: "veintitrés", 24: "veinticuatro",
+      25: "veinticinco", 26: "veintiséis", 27: "veintisiete", 28: "veintiocho", 29: "veintinueve",
+      30: "treinta", 40: "cuarenta", 50: "cincuenta", 60: "sesenta",
+      70: "setenta", 80: "ochenta", 90: "noventa", 100: "cien",
+      200: "doscientos", 300: "trescientos", 400: "cuatrocientos", 500: "quinientos",
+      600: "seiscientos", 700: "setecientos", 800: "ochocientos", 900: "novecientos",
+      1000: "mil", 2000: "dos mil", 3000: "tres mil",
+    };
+
+    const convertir = (n: number): string => {
+      if (dict[n] !== undefined) return dict[n];
+      if (n < 100) {
+        const dec = Math.floor(n / 10) * 10;
+        const uni = n % 10;
+        return `${dict[dec]} y ${dict[uni]}`;
+      }
+      if (n < 200) {
+        return `ciento ${convertir(n - 100)}`;
+      }
+      if (n < 1000) {
+        const cen = Math.floor(n / 100) * 100;
+        const resto = n % 100;
+        return `${dict[cen]} ${convertir(resto)}`;
+      }
+      if (n < 2000) {
+        return `mil ${convertir(n - 1000)}`;
+      }
+      return `dos mil ${convertir(n - 2000)}`;
+    };
+
+    for (let i = 0; i <= 3000; i++) {
+      dict[i] = convertir(i);
+    }
+    return dict;
+  })();
+
+  const numeroAPalabras = (numStr: string): string => {
+    const n = parseInt(numStr, 10);
+    if (!isNaN(n) && n >= 0 && n <= 3000) {
+      return DICCIONARIO_NUMEROS[n];
+    }
+    return numStr
+      .split("")
+      .map((d) => DICCIONARIO_NUMEROS[parseInt(d, 10)] ?? d)
+      .join(", ");
+  };
+
   const limpiarTextoParaVoz = (texto: string): string => {
     const meses = [
       "enero", "febrero", "marzo", "abril", "mayo", "junio",
       "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
     ];
     return texto
-      .replace(/([0-9])\uFE0F?\u20E3/g, "$1. ")
+      // 1. Convertir emojis de numeros del menu (1️⃣, 2️⃣, 3️⃣, 4️⃣...) a palabras claras
+      .replace(/([0-9])\uFE0F?\u20E3/g, (_, d) => `opción ${DICCIONARIO_NUMEROS[parseInt(d, 10)]}, `)
+      // 2. Eliminar todos los demas emojis decorativos (compatible con Vercel/TypeScript)
       .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0F\u200D\u20E3]/g, " ")
+      // 3. Limpiar asteriscos y flechas
       .replace(/\*/g, "")
       .replace(/->/g, ", luego ")
+      // 4. Fechas completas YYYY-MM-DD o YYYY/MM/DD
       .replace(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/g, (_, y, m, d) => {
         const mes = meses[parseInt(m, 10) - 1];
-        return mes ? `${parseInt(d, 10)} de ${mes} de ${y}` : `${d} del ${m} de ${y}`;
+        const diaTxt = numeroAPalabras(d);
+        const anioTxt = numeroAPalabras(y);
+        return mes ? `${diaTxt} de ${mes} de ${anioTxt}` : `${diaTxt} del ${numeroAPalabras(m)} de ${anioTxt}`;
       })
+      // 5. Fechas completas DD-MM-YYYY o DD/MM/YYYY
       .replace(/\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g, (_, d, m, y) => {
         const mes = meses[parseInt(m, 10) - 1];
-        return mes ? `${parseInt(d, 10)} de ${mes} de ${y}` : `${d} del ${m} de ${y}`;
+        const diaTxt = numeroAPalabras(d);
+        const anioTxt = numeroAPalabras(y);
+        return mes ? `${diaTxt} de ${mes} de ${anioTxt}` : `${diaTxt} del ${numeroAPalabras(m)} de ${anioTxt}`;
       })
-      .replace(/\b1\/2\b/g, "1 o 2")
+      // 6. Opcion 1/2 y fechas cortas DD/MM o DD-MM
+      .replace(/\b1\/2\b/g, "uno o dos")
       .replace(/\b(\d{1,2})[-\/](\d{1,2})\b/g, (_, d, m) => {
         const dia = parseInt(d, 10);
         const mesNum = parseInt(m, 10);
         if (dia >= 1 && dia <= 31 && mesNum >= 1 && mesNum <= 12) {
-          return `${dia} de ${meses[mesNum - 1]}`;
+          return `${numeroAPalabras(d)} de ${meses[mesNum - 1]}`;
         }
-        return `${d}, ${m}`;
+        return `${numeroAPalabras(d)}, ${numeroAPalabras(m)}`;
       })
+      // 7. Eliminar barras / restantes
       .replace(/\//g, " o ")
-      .replace(/\b(\d{1,2}):00\s*AM\b/gi, "$1 de la mañana")
-      .replace(/\b(\d{1,2}):00\s*PM\b/gi, "$1 de la tarde")
-      .replace(/\b(\d{1,2}):(\d{2})\b/g, "$1 y $2")
-      .replace(/\bMz\.?\s*(\d+)/gi, "manzana $1")
-      .replace(/\bCs\.?\s*(\d+)/gi, "casa $1")
-      .replace(/\bSec\.?\s*(\d+)/gi, "sector $1")
-      .replace(/\b(?:Cra|Kr)\.?\s*(\d+)/gi, "carrera $1")
-      .replace(/\b(?:Cll|Cl)\.?\s*(\d+)/gi, "calle $1")
+      // 8. Horarios AM / PM
+      .replace(/\b(\d{1,2}):00\s*AM\b/gi, (_, h) => `${numeroAPalabras(h)} de la mañana`)
+      .replace(/\b(\d{1,2}):00\s*PM\b/gi, (_, h) => (parseInt(h, 10) === 12 ? "doce del mediodía" : `${numeroAPalabras(h)} de la tarde`))
+      .replace(/\b(\d{1,2}):(\d{2})\b/g, (_, h, min) =>
+        min === "00" ? numeroAPalabras(h) : `${numeroAPalabras(h)} y ${numeroAPalabras(min)}`
+      )
+      // 9. Abreviaturas de direcciones y numeros de casa con guion (ej. 14-20 -> catorce, veinte)
+      .replace(/\bMz\.?\s*(\d+)/gi, (_, n) => `manzana ${numeroAPalabras(n)}`)
+      .replace(/\bCs\.?\s*(\d+)/gi, (_, n) => `casa ${numeroAPalabras(n)}`)
+      .replace(/\bSec\.?\s*(\d+)/gi, (_, n) => `sector ${numeroAPalabras(n)}`)
+      .replace(/\b(?:Cra|Kr)\.?\s*(\d+)/gi, (_, n) => `carrera ${numeroAPalabras(n)}`)
+      .replace(/\b(?:Cll|Cl)\.?\s*(\d+)/gi, (_, n) => `calle ${numeroAPalabras(n)}`)
       .replace(/#\s*/g, "número ")
-      .replace(/\b(\d{1,3})\s*-\s*(\d{1,3})\b/g, "$1, $2")
-      .replace(/\+57\s*/g, "más 57, ")
-      .replace(/\b\d{7,12}\b/g, (num) => num.split("").join(", "))
+      .replace(/\b(\d{1,4})\s*-\s*(\d{1,4})\b/g, (_, a, b) => `${numeroAPalabras(a)}, ${numeroAPalabras(b)}`)
+      // 10. Telefonos largos digito por digito
+      .replace(/\+57\s*/g, "más cincuenta y siete, ")
+      .replace(/\b\d{7,12}\b/g, (num) =>
+        num.split("").map((d) => DICCIONARIO_NUMEROS[parseInt(d, 10)] ?? d).join(", ")
+      )
+      // 11. Convertir CUALQUIER numero restante (0 a 3000) a palabra en espanol
+      .replace(/\b\d+\b/g, (num) => numeroAPalabras(num))
       .replace(/\s+/g, " ")
       .trim();
   };
