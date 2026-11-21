@@ -1458,7 +1458,7 @@ export default function EcoConectaPage() {
 
         {esCoordinador && (
           <section className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -1482,18 +1482,6 @@ export default function EcoConectaPage() {
                 }`}
               >
                 👷 Personal ({rolEquipoCoord}s)
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  hablar("Configuración WhatsApp y puntos");
-                  setVistaCoord("config");
-                }}
-                className={`p-3 rounded-xl font-black text-xs border-2 ${
-                  vistaCoord === "config" ? "bg-emerald-700 text-white border-emerald-950" : "bg-white"
-                }`}
-              >
-                ⚙️ WhatsApp y Puntos
               </button>
             </div>
 
@@ -1836,53 +1824,6 @@ export default function EcoConectaPage() {
                   ))}
               </div>
             )}
-
-            {vistaCoord === "config" && (
-              <div className="flex flex-col gap-4">
-                {renderTarjetaConfigWhatsApp()}
-
-                <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                  <h3 className="font-black text-sm">Puntos por Recolección</h3>
-                  {reglasPuntos.map((r) => (
-                    <div key={r.id} className="flex items-center justify-between gap-2 bg-stone-50 p-2.5 rounded-xl border">
-                      <span className="font-bold text-xs uppercase">{r.flujo}</span>
-                      <input
-                        type="number"
-                        className="w-20 p-1.5 border rounded font-bold text-center text-sm"
-                        value={puntosEdit[r.flujo] ?? r.puntos_base}
-                        onChange={(e) =>
-                          setPuntosEdit({ ...puntosEdit, [r.flujo]: Number(e.target.value) })
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => guardarReglaPuntos(r)}
-                        className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
-                      >
-                        Guardar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                  <h3 className="font-black text-sm">Publicar Guía Educativa</h3>
-                  <input type="text" placeholder="Título" className="p-2 border rounded text-sm" value={nuevoTituloEdu} onChange={(e) => setNuevoTituloEdu(e.target.value)} />
-                  <select className="p-2 border rounded text-sm" value={nuevoFlujoEdu} onChange={(e) => setNuevoFlujoEdu(e.target.value)}>
-                    <option value="organico">Orgánico</option>
-                    <option value="reciclable">Reciclable</option>
-                  </select>
-                  <textarea placeholder="Texto educativo..." className="p-2 border rounded text-sm" rows={2} value={nuevoTextoEdu} onChange={(e) => setNuevoTextoEdu(e.target.value)} />
-                  <button
-                    type="button"
-                    onClick={crearContenidoEducativo}
-                    className="bg-sky-700 text-white font-bold py-2 rounded-xl text-xs"
-                  >
-                    Publicar Guía
-                  </button>
-                </div>
-              </div>
-            )}
           </section>
         )}
 
@@ -1942,6 +1883,47 @@ export default function EcoConectaPage() {
             </div>
 
             {renderTarjetaConfigWhatsApp()}
+
+            <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
+                  <h3 className="font-black text-sm">Puntos por Recolección</h3>
+                  {reglasPuntos.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-2 bg-stone-50 p-2.5 rounded-xl border">
+                      <span className="font-bold text-xs uppercase">{r.flujo}</span>
+                      <input
+                        type="number"
+                        className="w-20 p-1.5 border rounded font-bold text-center text-sm"
+                        value={puntosEdit[r.flujo] ?? r.puntos_base}
+                        onChange={(e) =>
+                          setPuntosEdit({ ...puntosEdit, [r.flujo]: Number(e.target.value) })
+                        }
+                      />
+                      <button
+                        type="button"
+                        onClick={() => guardarReglaPuntos(r)}
+                        className="bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg"
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
+                  <h3 className="font-black text-sm">Publicar Guía Educativa</h3>
+                  <input type="text" placeholder="Título" className="p-2 border rounded text-sm" value={nuevoTituloEdu} onChange={(e) => setNuevoTituloEdu(e.target.value)} />
+                  <select className="p-2 border rounded text-sm" value={nuevoFlujoEdu} onChange={(e) => setNuevoFlujoEdu(e.target.value)}>
+                    <option value="organico">Orgánico</option>
+                    <option value="reciclable">Reciclable</option>
+                  </select>
+                  <textarea placeholder="Texto educativo..." className="p-2 border rounded text-sm" rows={2} value={nuevoTextoEdu} onChange={(e) => setNuevoTextoEdu(e.target.value)} />
+                  <button
+                    type="button"
+                    onClick={crearContenidoEducativo}
+                    className="bg-sky-700 text-white font-bold py-2 rounded-xl text-xs"
+                  >
+                    Publicar Guía
+                  </button>
+                </div>
 
             <div className="bg-white p-4 rounded-2xl border-2 border-emerald-600 flex flex-col gap-2">
               <h3 className="font-black text-sm">➕ Añadir Nuevo Usuario o Rol</h3>
