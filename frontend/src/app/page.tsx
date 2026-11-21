@@ -255,11 +255,12 @@ export default function EcoConectaPage() {
     };
 
     return texto
-      // 1. Convertir emojis de numeros del menu (1-4 y variantes) a "Opcion uno:", "Opcion dos:", etc.
-      .replace(/([0-9])[\uFE0E\uFE0F\s]*\u20E3[\uFE0E\uFE0F]*/g, (_, d) => `Opci\u00f3n ${digitosMenu[d] || d}: `)
+      // 1. Convertir cualquier emoji numerico (normal o alterado) a "Opcion uno:", "Opcion dos:", etc.
+      .replace(/([0-9])[\u0080-\uFFFF\uFE0E\uFE0F\u200D\u20E3]+/g, (_, d) => `Opci\u00f3n ${digitosMenu[d] || d}: `)
       .replace(/[\u2460-\u2464\u2776-\u277A]/g, (ch) => `Opci\u00f3n ${digitosMenu[ch] || ""}: `)
+      .replace(/(?:^|[\r\n])\s*([1-4])\s*[.)\-:]\s+/g, (_, d) => ` Opci\u00f3n ${digitosMenu[d] || d}: `)
       // 2. Eliminar todos los demas emojis decorativos
-      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0E\uFE0F\u200D\u20E3]/g, " ")
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0E\uFE0F\u200D\u20E3\uFFFD]/g, " ")
       // 3. Quitar asteriscos y flechas
       .replace(/\*/g, "")
       .replace(/->/g, ", luego ")
