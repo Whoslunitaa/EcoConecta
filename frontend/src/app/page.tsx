@@ -173,6 +173,7 @@ export default function EcoConectaPage() {
   const [telefonoManual, setTelefonoManual] = useState<string>("");
   const [horario, setHorario] = useState<string>("Mañana (8:00 AM - 12:00 PM)");
   const [observacionVoz, setObservacionVoz] = useState<string>("");
+  const [fechaPreferidaSol, setFechaPreferidaSol] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [ubicacionGps, setUbicacionGps] = useState<string>("");
   const [grabandoCampo, setGrabandoCampo] = useState<"direccion" | "nota" | null>(null);
   const [mensajeSistema, setMensajeSistema] = useState<string>("");
@@ -705,7 +706,8 @@ export default function EcoConectaPage() {
         flujo,
         direccion_manual: direccionManual,
         telefono_manual: telefonoManual,
-        descripcion: observacionVoz || `Entrega de residuos ${flujo}`,
+        descripcion: `${observacionVoz || `Entrega de residuos ${flujo}`}${fechaPreferidaSol ? ` | Fecha solicitada: ${fechaPreferidaSol}` : ""}`,
+        fecha_preferida: fechaPreferidaSol,
         ubicacion_gps: ubicacionGps,
         disponibilidad_horaria: horario,
         canal_origen: "web",
@@ -1577,7 +1579,21 @@ export default function EcoConectaPage() {
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                  <label className="font-black text-sm">5. Horario preferido</label>
+                  <label className="font-black text-sm">5. Día y horario preferido</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-black text-[#063B2E]">📅 Elige el día de recolección *</label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={fechaPreferidaSol}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFechaPreferidaSol(val);
+                    if (val) hablar(`Día seleccionado para recolección: ${val}.`);
+                  }}
+                  className="w-full p-2.5 rounded-xl border-2 border-[#168A2E] bg-[#FFFFFF] text-sm font-bold text-[#1D231F]"
+                />
+              </div>
                   <select
                     value={horario}
                     onChange={(e) => {
