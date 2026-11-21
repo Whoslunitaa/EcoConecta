@@ -110,6 +110,14 @@ export default function EcoConectaPage() {
   const [vistaPublica, setVistaPublica] = useState<"pedir" | "aprender" | "whatsapp" | "registro" | "login">("pedir");
   const [vistaCoord, setVistaCoord] = useState<"bandeja" | "equipo" | "config">("bandeja");
   const [filtroAdminSol, setFiltroAdminSol] = useState<"pendientes" | "todas" | "completadas">("pendientes");
+  const [pestanaActiva, setPestanaActiva] = useState<"gestion" | "calendario">("gestion");
+  const [modoCalendario, setModoCalendario] = useState<"dia" | "semana" | "mes">("semana");
+  const [fechaCalendarioSel, setFechaCalendarioSel] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [descansosCalendario, setDescansosCalendario] = useState<Array<{ id: string; usuarioId: number; nombre: string; rol: string; fecha: string; hora: string; nota: string }>>([]);
+  const [horaDescansoInput, setHoraDescansoInput] = useState<string>("12:30 PM - 1:30 PM");
+  const [notaDescansoInput, setNotaDescansoInput] = useState<string>("Descanso del día");
+  const [subFiltroCategoria, setSubFiltroCategoria] = useState<"todo" | "recoleccion" | "equipo">("todo");
+  const [subFiltroFlujo, setSubFiltroFlujo] = useState<"todos" | "huertero" | "reciclador">("todos");
 
   const refrescarSolicitudesAdmin = async () => {
     try {
@@ -124,45 +132,26 @@ export default function EcoConectaPage() {
     } catch {}
   };
 
+  const usuarioIdActual = usuarioActual?.id ?? null;
+  const usuarioRolActual = usuarioActual?.rol ?? null;
+
   useEffect(() => {
-    if (!usuarioActual) return;
-
-    const sincronizar = async () => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
-      try {
-        const api = getApiUrl();
-        const headers: Record<string, string> = { "rol-actor": usuarioActual.rol };
-        if (usuarioActual.rol === "huertero" || usuarioActual.rol === "reciclador") {
-          headers["usuario-id"] = String(usuarioActual.id);
-        } else if (usuarioActual.rol === "coord_huerteros") {
-          headers["flujo-filtro"] = "organico";
-        } else if (usuarioActual.rol === "coord_recicladores") {
-          headers["flujo-filtro"] = "reciclable";
-        }
-        const res = await fetch(`${api}/solicitudes`, { headers, cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data)) setSolicitudes(data);
-        }
-      } catch {}
-    };
-
-    if (usuarioActual.rol === "admin") {
+    if (!usuarioIdActual || !usuarioRolActual) return;
+    if (usuarioRolActual === "admin") {
       setFiltroAdminSol("pendientes");
+      setSubFiltroCategoria("todo");
+      setSubFiltroFlujo("todos");
     }
-    sincronizar();
+  }, [usuarioIdActual, usuarioRolActual]);
 
-    const intervalo = setInterval(sincronizar, 5000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") sincronizar();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-
-    return () => {
-      clearInterval(intervalo);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [usuarioActual]);
+  useEffect(() => {
+    if (!usuarioIdActual || !usuarioRolActual) return;
+    if (usuarioRolActual === "admin") {
+      setFiltroAdminSol("pendientes");
+      setSubFiltroCategoria("todo");
+      setSubFiltroFlujo("todos");
+    }
+  }, [usuarioIdActual, usuarioRolActual]);
 
   const [loginUser, setLoginUser] = useState<string>("");
   const [loginPass, setLoginPass] = useState<string>("");
@@ -184,9 +173,20 @@ export default function EcoConectaPage() {
   const [telefonoManual, setTelefonoManual] = useState<string>("");
   const [horario, setHorario] = useState<string>("Mañana (8:00 AM - 12:00 PM)");
   const [observacionVoz, setObservacionVoz] = useState<string>("");
+  const [fechaPreferidaSol, setFechaPreferidaSol] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [ubicacionGps, setUbicacionGps] = useState<string>("");
   const [grabandoCampo, setGrabandoCampo] = useState<"direccion" | "nota" | null>(null);
   const [mensajeSistema, setMensajeSistema] = useState<string>("");
+  useEffect(() => {
+    if (mensajeSistema && mensajeSistema.trim().length > 0) {
+      hablar(mensajeSistema); // lectura-automatica-mensajes
+    }
+  }, [mensajeSistema]);
+  useEffect(() => {
+    if (mensajeSistema && mensajeSistema.trim().length > 0) {
+      hablar(mensajeSistema); // auto-lectura
+    }
+  }, [mensajeSistema]);
   const [linkWaDirecto, setLinkWaDirecto] = useState<string>("");
   const [linkWaSecundario, setLinkWaSecundario] = useState<string>("");
 
@@ -505,13 +505,24 @@ export default function EcoConectaPage() {
     cargarDatosPublicos();
   }, []);
 
+
   useEffect(() => {
-    if (!usuarioActual) return;
-    const timer = setInterval(() => {
-      cargarDatosPrivados(usuarioActual, false);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [usuarioActual]);
+    if (!usuarioIdActual || !usuarioRolActual) return;
+    if (usuarioRolActual === "admin") {
+      setFiltroAdminSol("pendientes");
+      setSubFiltroCategoria("todo");
+      setSubFiltroFlujo("todos");
+    }
+  }, [usuarioIdActual, usuarioRolActual]);
+
+  useEffect(() => {
+    if (!usuarioIdActual || !usuarioRolActual) return;
+    if (usuarioRolActual === "admin") {
+      setFiltroAdminSol("pendientes");
+      setSubFiltroCategoria("todo");
+      setSubFiltroFlujo("todos");
+    }
+  }, [usuarioIdActual, usuarioRolActual]);
 
   const guardarNumeroWhatsAppOficial = async (limpiar = false) => {
     if (!usuarioActual) return;
@@ -695,7 +706,8 @@ export default function EcoConectaPage() {
         flujo,
         direccion_manual: direccionManual,
         telefono_manual: telefonoManual,
-        descripcion: observacionVoz || `Entrega de residuos ${flujo}`,
+        descripcion: `${observacionVoz || `Entrega de residuos ${flujo}`}${fechaPreferidaSol ? ` | Fecha solicitada: ${fechaPreferidaSol}` : ""}`,
+        fecha_preferida: fechaPreferidaSol,
         ubicacion_gps: ubicacionGps,
         disponibilidad_horaria: horario,
         canal_origen: "web",
@@ -795,6 +807,59 @@ export default function EcoConectaPage() {
     const recId = recolectorSel[solId] || solActual?.recolector_id;
     const fecha = fechaSel[solId] || solActual?.fecha_programada || new Date().toISOString().slice(0, 10);
     const hora = (horaSel[solId] || solActual?.hora_programada || solActual?.disponibilidad_horaria || "").trim();
+    const normH = (v: string) => {
+      const limpio = v.trim().toUpperCase().replace(/\s+/g, "");
+      const m = limpio.match(/^0?(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+      if (!m) return limpio;
+      return `${m[1]}:${m[2] || "00"}${m[3] || ""}`;
+    };
+    const conflictoHorario = solicitudes.find(
+      (s) =>
+        s.id !== solId &&
+        s.estado !== "cancelada" &&
+        Number(s.recolector_id) === Number(recId) &&
+        String(s.fecha_programada || "").trim() === String(fecha).trim() &&
+        normH(String(s.hora_programada || "")) === normH(String(hora)) &&
+        normH(String(hora)) !== ""
+    );
+    const conflictoDescanso = descansosCalendario.find(
+      (d) =>
+        Number(d.usuarioId) === Number(recId) &&
+        String(d.fecha || "").trim() === String(fecha).trim() &&
+        normH(String(d.hora || "")) === normH(String(hora)) &&
+        normH(String(hora)) !== ""
+    );
+    if (conflictoDescanso) {
+      const avisoDesc = `No es posible agendar a ${conflictoDescanso.nombre} el ${fecha} a las ${hora} porque tiene un descanso registrado en esa hora.`;
+      setMensajeSistema(avisoDesc);
+      hablar(avisoDesc);
+      return;
+    }
+    if (conflictoHorario) {
+      const empNombre = usuarios.find((u) => Number(u.id) === Number(recId))?.nombre || "este encargado";
+      const aviso = `No es posible agendar a ${empNombre} el ${fecha} a las ${hora}; ya tiene una visita asignada en ese mismo día y hora. Puedes agendar a otro integrante o elegir otra hora.`;
+      setMensajeSistema(aviso);
+      hablar(aviso);
+      return;
+    }
+    const normalizarHora = (h: string) => h.trim().toLowerCase().replace(/\s+/g, "");
+    const normalizarFecha = (f: string) => f.trim();
+    const conflicto = solicitudes.find(
+      (x) =>
+        x.id !== solId &&
+        x.estado !== "cancelada" &&
+        Number(x.recolector_id) === Number(recId) &&
+        normalizarFecha(String(x.fecha_programada || "")) === normalizarFecha(String(fecha)) &&
+        normalizarHora(String(x.hora_programada || "")) === normalizarHora(String(hora)) &&
+        normalizarHora(String(hora)) !== ""
+    );
+    if (conflicto) {
+      const encargadoNombre = usuarios.find((u) => Number(u.id) === Number(recId))?.nombre || "este encargado";
+      const msgConflicto = `No es posible agendar a ${encargadoNombre} el ${fecha} a las ${hora}; ya tiene una visita programada en ese mismo día y hora. Elige otro horario o a otro integrante.`;
+      setMensajeSistema(msgConflicto);
+      hablar(msgConflicto);
+      return;
+    }
 
     if (!recId || !fecha || !hora) {
       const m = "Selecciona el encargado aprobado, el día y la hora.";
@@ -1293,6 +1358,182 @@ export default function EcoConectaPage() {
     </div>
   );
 
+  const renderDisponibilidadDiaCoord = (s: (typeof solicitudes)[number]) => {
+    const fechaObj = (fechaSel[s.id] || s.fecha_programada || new Date().toISOString().slice(0, 10)).trim();
+    const empIdObj = Number(recolectorSel[s.id] || s.recolector_id || 0);
+    const empObj = usuarios.find((u) => Number(u.id) === empIdObj);
+    const empNombre = empObj?.nombre || "Sin encargado seleccionado";
+
+    const normHora = (v: string) => {
+      const limpio = (v || "").trim().toUpperCase().replace(/\s+/g, "");
+      const m = limpio.match(/^0?(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+      if (!m) return limpio;
+      return `${m[1]}:${m[2] || "00"}${m[3] || ""}`;
+    };
+
+    const programadasDia = solicitudes.filter((item) => {
+      if (item.id === s.id || item.estado === "cancelada") return false;
+      if (String(item.fecha_programada || "").trim() !== fechaObj) return false;
+      if (usuarioActual?.rol === "coord_huerteros" && item.flujo !== "organico") return false;
+      if (usuarioActual?.rol === "coord_recicladores" && item.flujo !== "reciclable") return false;
+      return true;
+    });
+
+    const descansosDia = descansosCalendario.filter((d) => String(d.fecha || "").trim() === fechaObj);
+
+    const franjas = [
+      "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+      "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
+    ];
+
+    const horasLibresEmp = franjas.filter((fr) => {
+      if (!empIdObj) return true;
+      const ocupVis = programadasDia.some(
+        (v) => Number(v.recolector_id) === empIdObj && normHora(String(v.hora_programada || "")) === normHora(fr)
+      );
+      const ocupDesc = descansosDia.some(
+        (d) => Number(d.usuarioId) === empIdObj && normHora(String(d.hora || "")) === normHora(fr)
+      );
+      return !ocupVis && !ocupDesc;
+    });
+
+    const escucharAgendaDia = () => {
+      if (programadasDia.length === 0 && descansosDia.length === 0) {
+        const msgVacio = `Para el día ${fechaObj} no hay visitas programadas todavía. Todas las horas están disponibles.`;
+        setMensajeSistema(msgVacio);
+        hablar(msgVacio);
+        return;
+      }
+      const detalleProg = programadasDia
+        .map((v) => {
+          const enc = usuarios.find((u) => Number(u.id) === Number(v.recolector_id))?.nombre || "sin asignar";
+          return `${v.hora_programada || "hora pendiente"} con ${enc} (${v.codigo})`;
+        })
+        .join("; ");
+      const detalleLibres = empIdObj
+        ? ` Horas disponibles para ${empNombre}: ${horasLibresEmp.length > 0 ? horasLibresEmp.join(", ") : "ninguna"}.`
+        : " Selecciona un encargado para ver sus horas libres.";
+      const textoTotal = `Programados para el ${fechaObj}: ${detalleProg || "ninguno"}.${detalleLibres}`;
+      setMensajeSistema(textoTotal);
+      hablar(textoTotal);
+    };
+
+    const horaActualInput = (horaSel[s.id] || s.hora_programada || "").trim();
+    const hayCruceActual =
+      empIdObj > 0 &&
+      normHora(horaActualInput) !== "" &&
+      (programadasDia.some(
+        (v) => Number(v.recolector_id) === empIdObj && normHora(String(v.hora_programada || "")) === normHora(horaActualInput)
+      ) ||
+        descansosDia.some(
+          (d) => Number(d.usuarioId) === empIdObj && normHora(String(d.hora || "")) === normHora(horaActualInput)
+        ));
+
+    return (
+      <div className="bg-[#FFFFFF] border-2 border-[#0A9B70] rounded-xl p-2.5 flex flex-col gap-2 text-[#1D231F]">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <span className="text-[11px] font-black text-[#063B2E]">
+            🗓️ Agenda del {fechaObj} ({programadasDia.length} programadas)
+          </span>
+          <button
+            type="button"
+            onClick={escucharAgendaDia}
+            className="px-2.5 py-1 rounded-lg bg-[#F6C400] text-[#1D231F] border border-[#063B2E] text-[11px] font-black"
+          >
+            🔊 Escuchar día
+          </button>
+        </div>
+
+        {programadasDia.length === 0 ? (
+          <p className="text-[11px] font-bold text-[#168A2E]">
+            ✅ No hay visitas programadas este día. Todas las horas están libres.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1 max-h-28 overflow-y-auto pr-1">
+            {programadasDia.map((v) => {
+              const enc = usuarios.find((u) => Number(u.id) === Number(v.recolector_id))?.nombre || "Sin encargado";
+              const mismoEnc = empIdObj > 0 && Number(v.recolector_id) === empIdObj;
+              return (
+                <div
+                  key={v.id}
+                  onClick={() =>
+                    hablar(`Visita ${v.codigo} programada el ${fechaObj} a las ${v.hora_programada || "sin hora"} con ${enc}.`)
+                  }
+                  className={`text-[11px] px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer ${
+                    mismoEnc
+                      ? "bg-[#F28C00]/20 border-[#F28C00] font-black text-[#1D231F]"
+                      : "bg-stone-50 border-stone-200 text-[#1D231F]"
+                  }`}
+                >
+                  <span>
+                    ⏰ <strong>{v.hora_programada || "Sin hora"}</strong> • {enc}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#063B2E]">{v.codigo}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-black text-[#063B2E]">
+            Horas para {empNombre} (toca una disponible):
+          </span>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1">
+            {franjas.map((fr) => {
+              const visEmp =
+                empIdObj > 0
+                  ? programadasDia.find(
+                      (v) => Number(v.recolector_id) === empIdObj && normHora(String(v.hora_programada || "")) === normHora(fr)
+                    )
+                  : undefined;
+              const descEmp =
+                empIdObj > 0
+                  ? descansosDia.find(
+                      (d) => Number(d.usuarioId) === empIdObj && normHora(String(d.hora || "")) === normHora(fr)
+                    )
+                  : undefined;
+              const ocupado = Boolean(visEmp || descEmp);
+              const seleccionada = normHora(horaActualInput) === normHora(fr);
+
+              return (
+                <button
+                  key={fr}
+                  type="button"
+                  onClick={() => {
+                    if (ocupado) {
+                      const motivo = visEmp ? `la visita ${visEmp.codigo}` : "un descanso";
+                      const alerta = `Hora no disponible: ${empNombre} ya tiene ${motivo} el ${fechaObj} a las ${fr}.`;
+                      setMensajeSistema(alerta);
+                      hablar(alerta);
+                      return;
+                    }
+                    setHoraSel({ ...horaSel, [s.id]: fr });
+                    hablar(`Hora disponible seleccionada: ${fr} para ${empNombre} el ${fechaObj}.`);
+                  }}
+                  className={`py-1 px-1.5 rounded-lg text-[10px] font-black border text-center transition ${
+                    ocupado
+                      ? "bg-[#F28C00] text-[#1D231F] border-[#063B2E] opacity-90 cursor-not-allowed"
+                      : seleccionada
+                      ? "bg-[#168A2E] text-[#FFFFFF] border-[#063B2E]"
+                      : "bg-[#FFFFFF] text-[#063B2E] border-[#168A2E] hover:bg-[#168A2E]/10"
+                  }`}
+                >
+                  {ocupado ? `🚫 ${fr}` : `✅ ${fr}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {hayCruceActual && (
+          <p className="text-[11px] font-black text-[#F28C00] bg-[#1D231F] px-2.5 py-1.5 rounded-lg">
+            ⚠️ {empNombre} ya tiene ocupado el {fechaObj} a las {horaActualInput}. Cambia la hora o el encargado.
+          </p>
+        )}
+      </div>
+    );
+  };
   const esCoordinador =
     usuarioActual?.rol === "coord_huerteros" || usuarioActual?.rol === "coord_recicladores";
   const esRecolector =
@@ -1532,7 +1773,21 @@ export default function EcoConectaPage() {
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                  <label className="font-black text-sm">5. Horario preferido</label>
+                  <label className="font-black text-sm">5. Día y horario preferido</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-black text-[#063B2E]">📅 Elige el día de recolección *</label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={fechaPreferidaSol}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFechaPreferidaSol(val);
+                    if (val) hablar(`Día seleccionado para recolección: ${val}.`);
+                  }}
+                  className="w-full p-2.5 rounded-xl border-2 border-[#168A2E] bg-[#FFFFFF] text-sm font-bold text-[#1D231F]"
+                />
+              </div>
                   <select
                     value={horario}
                     onChange={(e) => {
@@ -2118,7 +2373,7 @@ export default function EcoConectaPage() {
 
         {esRecolector && (
           <section className="flex flex-col gap-4">
-            <h2 className="font-black text-lg">Mis Tareas Asignadas (Vista Limitada)</h2>
+            <h2 className="font-black text-lg">Mis Tareas Asignadas </h2>
             {solicitudes.length === 0 && (
               <p className="bg-white p-4 rounded-2xl border text-sm text-stone-600">
                 Aún no tienes tareas asignadas. Cuando el Coordinador te programe una recolección, te enviará la ubicación, el día y la hora a tu WhatsApp (+{usuarioActual?.telefono}).
@@ -2162,6 +2417,511 @@ export default function EcoConectaPage() {
           </section>
         )}
 
+        
+        {usuarioActual && ["admin", "coord_huerteros", "coord_recicladores", "huertero", "reciclador"].includes(usuarioActual.rol) && (
+          <section className="bg-[#FFFFFF] p-4 rounded-2xl border-2 border-[#063B2E] shadow-sm flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#063B2E]/15 pb-2.5">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPestanaActiva("gestion");
+                    hablar("Pestaña de gestión.");
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black border transition ${
+                    pestanaActiva === "gestion"
+                      ? "bg-[#063B2E] text-[#FFFFFF] border-[#063B2E]"
+                      : "bg-[#FFFFFF] text-[#063B2E] border-[#063B2E]/30"
+                  }`}
+                >
+                  📋 Gestión
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPestanaActiva("calendario");
+                    const msg = "Calendario abierto. Toca cualquier visita, día o descanso para escucharlo con voz.";
+                    setMensajeSistema(msg);
+                    hablar(msg);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black border transition ${
+                    pestanaActiva === "calendario"
+                      ? "bg-[#168A2E] text-[#FFFFFF] border-[#063B2E]"
+                      : "bg-[#FFFFFF] text-[#063B2E] border-[#168A2E]"
+                  }`}
+                >
+                  📅 Calendario
+                </button>
+              </div>
+              <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-[#F6C400] text-[#1D231F] border border-[#063B2E]">
+                Agenda EcoConecta
+              </span>
+            </div>
+
+            {pestanaActiva === "calendario" && (() => {
+              const paletaEco = [
+                { bg: "#168A2E", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Eco" },
+                { bg: "#0A9B70", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Turquesa" },
+                { bg: "#65A90A", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Hoja" },
+                { bg: "#F6C400", border: "#063B2E", text: "#1D231F", nombre: "Amarillo Solar" },
+                { bg: "#F28C00", border: "#063B2E", text: "#1D231F", nombre: "Naranja Mariposa" },
+              ];
+
+              const operativos = usuarios.filter((u) => ["huertero", "reciclador"].includes(u.rol));
+              const colorDeEmpleado = (idEmp?: number | null) => {
+                if (!idEmp) return { bg: "#063B2E", border: "#063B2E", text: "#FFFFFF", nombre: "Verde Bosque" };
+                const idx = operativos.findIndex((u) => Number(u.id) === Number(idEmp));
+                return paletaEco[(idx >= 0 ? idx : Number(idEmp)) % paletaEco.length];
+              };
+
+              const mesesNombre = [
+                "enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+              ];
+              const diasNombreCorto = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+              const parseIso = (iso: string) => {
+                const p = iso.split("-").map(Number);
+                if (p.length !== 3 || !p[0] || !p[1] || !p[2]) return new Date();
+                return new Date(p[0], p[1] - 1, p[2]);
+              };
+
+              const formatIso = (d: Date) => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
+                return `${y}-${m}-${day}`;
+              };
+
+              const fechaLarga = (iso: string) => {
+                const d = parseIso(iso);
+                return `${d.getDate()} de ${mesesNombre[d.getMonth()]} de ${d.getFullYear()}`;
+              };
+
+              const baseDate = parseIso(fechaCalendarioSel);
+              const startWeek = new Date(baseDate);
+              startWeek.setDate(baseDate.getDate() - baseDate.getDay());
+
+              const columnasDias =
+                modoCalendario === "dia"
+                  ? [{ iso: formatIso(baseDate), corto: diasNombreCorto[baseDate.getDay()], num: baseDate.getDate() }]
+                  : Array.from({ length: 7 }, (_, i) => {
+                      const d = new Date(startWeek);
+                      d.setDate(startWeek.getDate() + i);
+                      return { iso: formatIso(d), corto: diasNombreCorto[d.getDay()], num: d.getDate() };
+                    });
+
+              const horasGrid = [
+                "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+                "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
+              ];
+
+              const matchHora = (horaVal: string | undefined | null, slot: string) => {
+                const h = (horaVal || "").trim().toUpperCase().replace(/\s+/g, "");
+                const s = slot.trim().toUpperCase().replace(/\s+/g, "");
+                if (!h) return false;
+                if (h === s) return true;
+                const num = s.split(":")[0];
+                const suf = s.includes("AM") ? "AM" : "PM";
+                return h.startsWith(num + ":") && h.endsWith(suf);
+              };
+
+              const esAdminOCoord = ["admin", "coord_huerteros", "coord_recicladores"].includes(usuarioActual.rol);
+
+              const visitasPermitidas = solicitudes.filter((s) => {
+                if (!s.fecha_programada) return false;
+                if (usuarioActual.rol === "coord_huerteros" && s.flujo !== "organico") return false;
+                if (usuarioActual.rol === "coord_recicladores" && s.flujo !== "reciclable") return false;
+                return true;
+              });
+
+              const visitasEnRango = visitasPermitidas.filter((s) =>
+                columnasDias.some((c) => c.iso === String(s.fecha_programada))
+              );
+
+              const descansosEnRango = descansosCalendario.filter((d) =>
+                columnasDias.some((c) => c.iso === d.fecha)
+              );
+
+              const anunciarVisita = (vis: (typeof solicitudes)[number]) => {
+                const enc = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
+                const encNombre = enc?.nombre || "Sin encargado asignado";
+                const esAsignado = Number(vis.recolector_id) === Number(usuarioActual.id);
+                const accesoTotal = esAdminOCoord || esAsignado;
+                const fTxt = fechaLarga(String(vis.fecha_programada || fechaCalendarioSel));
+                const hTxt = String(vis.hora_programada || vis.disponibilidad_horaria || "Horario por confirmar");
+
+                if (accesoTotal) {
+                  const texto = `Visita ${vis.codigo}. Encargado: ${encNombre}. Día ${fTxt}, hora ${hTxt}. Cliente: ${vis.solicitante_nombre}, dirección: ${vis.solicitante_direccion}. Qué se recoge: ${vis.descripcion || "recolección"}.`;
+                  setMensajeSistema(texto);
+                  hablar(texto);
+                } else {
+                  const textoPrivado = `Horario ocupado el ${fTxt}, hora general ${hTxt}. Encargado: ${encNombre}. Nombre, dirección y material están ocultos porque no estás asignado a esta visita.`;
+                  setMensajeSistema(textoPrivado);
+                  hablar(textoPrivado);
+                }
+              };
+
+              // Construcción de cuadrícula mensual si modoCalendario === "mes"
+              const primerDiaMes = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+              const ultimoDiaMes = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0);
+              const celdasMes: Array<{ iso: string; dia: number } | null> = [];
+              for (let b = 0; b < primerDiaMes.getDay(); b++) celdasMes.push(null);
+              for (let d = 1; d <= ultimoDiaMes.getDate(); d++) {
+                const dt = new Date(baseDate.getFullYear(), baseDate.getMonth(), d);
+                celdasMes.push({ iso: formatIso(dt), dia: d });
+              }
+
+              const totalEventos = Math.max(1, visitasEnRango.length + descansosEnRango.length);
+
+              return (
+                <div className="flex flex-col lg:flex-row gap-4 text-[#1D231F]">
+                  {/* Panel izquierdo: barra superior + cuadrícula estilo agenda */}
+                  <div className="flex-1 flex flex-col gap-3 overflow-x-auto">
+                    <div className="flex flex-wrap items-center justify-between gap-2 bg-[#FFFFFF] p-2 rounded-xl border border-[#063B2E]/20">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date(baseDate);
+                            d.setDate(baseDate.getDate() - (modoCalendario === "dia" ? 1 : 7));
+                            const iso = formatIso(d);
+                            setFechaCalendarioSel(iso);
+                            hablar(`Fecha: ${fechaLarga(iso)}.`);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-[#063B2E] text-xs font-black text-[#063B2E]"
+                        >
+                          &lt;
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const hoy = formatIso(new Date());
+                            setFechaCalendarioSel(hoy);
+                            hablar(`Hoy, ${fechaLarga(hoy)}.`);
+                          }}
+                          className="px-3 py-1 rounded-lg bg-[#168A2E] text-[#FFFFFF] border border-[#063B2E] text-xs font-black"
+                        >
+                          Hoy
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date(baseDate);
+                            d.setDate(baseDate.getDate() + (modoCalendario === "dia" ? 1 : 7));
+                            const iso = formatIso(d);
+                            setFechaCalendarioSel(iso);
+                            hablar(`Fecha: ${fechaLarga(iso)}.`);
+                          }}
+                          className="px-2.5 py-1 rounded-lg border border-[#063B2E] text-xs font-black text-[#063B2E]"
+                        >
+                          &gt;
+                        </button>
+                        <span className="text-sm font-black text-[#063B2E] ml-1 capitalize">
+                          {mesesNombre[baseDate.getMonth()]} {baseDate.getFullYear()}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-[#FFFFFF] p-1 rounded-xl border border-[#063B2E]/20">
+                        {(["dia", "semana", "mes"] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => {
+                              setModoCalendario(m);
+                              hablar(`Vista por ${m}.`);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg text-xs font-black capitalize ${
+                              modoCalendario === m
+                                ? "bg-[#063B2E] text-[#FFFFFF]"
+                                : "text-[#1D231F]"
+                            }`}
+                          >
+                            {m === "dia" ? "Día" : m === "semana" ? "Semana" : "Mes"}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="date"
+                          value={fechaCalendarioSel}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setFechaCalendarioSel(val);
+                            hablar(`Seleccionaste el ${fechaLarga(val)}.`);
+                          }}
+                          className="p-1.5 rounded-lg border border-[#063B2E] text-xs font-bold text-[#1D231F]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => hablar(`Estás viendo ${fechaLarga(fechaCalendarioSel)}.`)}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#F6C400] text-[#1D231F] border border-[#063B2E] text-xs font-black"
+                        >
+                          🔊
+                        </button>
+                      </div>
+                    </div>
+
+                    {modoCalendario === "mes" ? (
+                      <div className="border border-[#063B2E]/25 rounded-xl overflow-hidden bg-[#FFFFFF]">
+                        <div className="grid grid-cols-7 bg-[#063B2E] text-[#FFFFFF] text-center text-xs font-black py-2">
+                          {diasNombreCorto.map((dn) => (
+                            <div key={dn}>{dn}</div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-7">
+                          {celdasMes.map((cel, idx) => {
+                            if (!cel) return <div key={`empty-${idx}`} className="min-h-[78px] border border-[#063B2E]/10 bg-[#FFFFFF]" />;
+                            const vDia = visitasPermitidas.filter((v) => String(v.fecha_programada) === cel.iso);
+                            const dDia = descansosCalendario.filter((d) => d.fecha === cel.iso);
+                            const sel = cel.iso === fechaCalendarioSel;
+                            return (
+                              <div
+                                key={cel.iso}
+                                onClick={() => {
+                                  setFechaCalendarioSel(cel.iso);
+                                  hablar(`${fechaLarga(cel.iso)}: ${vDia.length} visitas y ${dDia.length} descansos.`);
+                                }}
+                                className={`min-h-[78px] p-1 border border-[#063B2E]/15 cursor-pointer flex flex-col gap-1 ${
+                                  sel ? "bg-[#F6C400]/20" : "bg-[#FFFFFF]"
+                                }`}
+                              >
+                                <span className={`text-[11px] font-black w-5 h-5 rounded-full flex items-center justify-center ${
+                                  sel ? "bg-[#063B2E] text-[#FFFFFF]" : "text-[#1D231F]"
+                                }`}>
+                                  {cel.dia}
+                                </span>
+                                {vDia.map((v) => {
+                                  const col = colorDeEmpleado(v.recolector_id);
+                                  const enc = usuarios.find((u) => Number(u.id) === Number(v.recolector_id))?.nombre || "Encargado";
+                                  return (
+                                    <button
+                                      key={v.id}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        anunciarVisita(v);
+                                      }}
+                                      style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                                      className="text-[10px] font-black px-1.5 py-0.5 rounded truncate border text-left"
+                                    >
+                                      {enc} • {v.hora_programada || "Hora"}
+                                    </button>
+                                  );
+                                })}
+                                {dDia.map((dc) => (
+                                  <span key={dc.id} className="text-[9px] font-black px-1 py-0.5 rounded bg-[#F28C00] text-[#1D231F] truncate">
+                                    🛋️ {dc.nombre}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-w-[540px] border border-[#063B2E]/25 rounded-xl overflow-hidden bg-[#FFFFFF]">
+                        <div
+                          className={`grid ${modoCalendario === "dia" ? "grid-cols-2" : "grid-cols-8"} bg-[#063B2E] text-[#FFFFFF] text-center text-xs font-black`}
+                        >
+                          <div className="p-2 border-r border-[#FFFFFF]/20">Hora</div>
+                          {columnasDias.map((c) => {
+                            const activa = c.iso === fechaCalendarioSel;
+                            return (
+                              <button
+                                key={c.iso}
+                                type="button"
+                                onClick={() => {
+                                  setFechaCalendarioSel(c.iso);
+                                  hablar(`${c.corto}, ${fechaLarga(c.iso)}.`);
+                                }}
+                                className={`p-2 border-r border-[#FFFFFF]/20 flex flex-col items-center ${
+                                  activa ? "bg-[#168A2E]" : "hover:bg-[#0A9B70]"
+                                }`}
+                              >
+                                <span className="text-[10px] uppercase">{c.corto}</span>
+                                <span className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center font-black ${
+                                  activa ? "bg-[#F6C400] text-[#1D231F]" : ""
+                                }`}>
+                                  {c.num}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {horasGrid.map((slot) => (
+                          <div
+                            key={slot}
+                            className={`grid ${modoCalendario === "dia" ? "grid-cols-2" : "grid-cols-8"} border-t border-[#063B2E]/15 min-h-[54px]`}
+                          >
+                            <div className="p-1.5 text-[11px] font-bold text-[#063B2E] border-r border-[#063B2E]/15 flex items-start justify-end">
+                              {slot}
+                            </div>
+                            {columnasDias.map((c) => {
+                              const itemsVis = visitasEnRango.filter(
+                                (v) => String(v.fecha_programada) === c.iso && matchHora(v.hora_programada || v.disponibilidad_horaria, slot)
+                              );
+                              const itemsDesc = descansosEnRango.filter(
+                                (dc) => dc.fecha === c.iso && matchHora(dc.hora, slot)
+                              );
+                              return (
+                                <div
+                                  key={`${c.iso}-${slot}`}
+                                  onClick={() => {
+                                    setFechaCalendarioSel(c.iso);
+                                    hablar(`${c.corto}, ${fechaLarga(c.iso)}, ${slot}.`);
+                                  }}
+                                  className="p-1 border-r border-[#063B2E]/15 flex flex-col gap-1 cursor-pointer hover:bg-[#65A90A]/10"
+                                >
+                                  {itemsVis.map((vis) => {
+                                    const col = colorDeEmpleado(vis.recolector_id);
+                                    const encNombre = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id))?.nombre || "Sin asignar";
+                                    const esAsig = Number(vis.recolector_id) === Number(usuarioActual.id);
+                                    const verTodo = esAdminOCoord || esAsig;
+                                    return (
+                                      <button
+                                        key={vis.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          anunciarVisita(vis);
+                                        }}
+                                        style={{ backgroundColor: col.bg, color: col.text, borderColor: col.border }}
+                                        className="w-full text-left p-1.5 rounded-lg border text-[11px] font-black leading-tight"
+                                      >
+                                        <div className="truncate">
+                                          {verTodo ? `${vis.codigo} • ${vis.solicitante_nombre}` : `Ocupado • ${encNombre}`}
+                                        </div>
+                                        <div className="text-[10px] opacity-95 truncate">
+                                          {encNombre} • {vis.hora_programada || slot}
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+
+                                  {itemsDesc.map((dc) => {
+                                    const col = colorDeEmpleado(dc.usuarioId);
+                                    return (
+                                      <button
+                                        key={dc.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const m = `Descanso de ${dc.nombre} el ${fechaLarga(dc.fecha)} a las ${dc.hora}. ${dc.nota}.`;
+                                          setMensajeSistema(m);
+                                          hablar(m);
+                                        }}
+                                        style={{ backgroundColor: "#FFFFFF", color: "#1D231F", borderColor: col.bg }}
+                                        className="w-full text-left p-1 rounded-lg border-2 border-dashed text-[10px] font-black truncate"
+                                      >
+                                        🛋️ {dc.nombre} ({dc.hora})
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Panel lateral estilo Time Insights con paleta EcoConecta */}
+                  <aside className="w-full lg:w-72 bg-[#FFFFFF] border border-[#063B2E]/25 rounded-2xl p-3.5 flex flex-col gap-3">
+                    <div className="flex items-center justify-between border-b border-[#063B2E]/15 pb-2">
+                      <div>
+                        <p className="text-[10px] font-black uppercase text-[#0A9B70]">{fechaLarga(fechaCalendarioSel)}</p>
+                        <h3 className="text-sm font-black text-[#063B2E]">Desglose por Color</h3>
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-black bg-[#65A90A] text-[#FFFFFF]">
+                        {visitasEnRango.length} visitas
+                      </span>
+                    </div>
+
+                    {/* Anillo visual con colores EcoConecta */}
+                    <div className="flex items-center justify-center py-1">
+                      <div className="relative w-28 h-28 rounded-full border-[12px] border-[#168A2E] flex flex-col items-center justify-center">
+                        <div className="absolute inset-[-12px] rounded-full border-[12px] border-t-[#0A9B70] border-r-[#65A90A] border-b-[#F6C400] border-l-[#F28C00] opacity-85" />
+                        <span className="text-base font-black text-[#063B2E]">{visitasEnRango.length}h</span>
+                        <span className="text-[10px] font-bold text-[#1D231F]">Agendadas</span>
+                      </div>
+                    </div>
+
+                    {/* Lista de empleados diferenciados por color */}
+                    <div className="flex flex-col gap-1.5">
+                      <p className="text-xs font-black text-[#063B2E]">Equipo por color</p>
+                      {operativos.map((emp) => {
+                        const col = colorDeEmpleado(emp.id);
+                        const cant = visitasEnRango.filter((v) => Number(v.recolector_id) === Number(emp.id)).length;
+                        return (
+                          <button
+                            key={emp.id}
+                            type="button"
+                            onClick={() => hablar(`${emp.nombre}, ${emp.rol}, color ${col.nombre}, ${cant} visitas.`)}
+                            className="flex items-center justify-between text-xs font-bold p-1.5 rounded-lg border border-[#063B2E]/15 bg-[#FFFFFF]"
+                          >
+                            <span className="flex items-center gap-2 truncate">
+                              <span
+                                style={{ backgroundColor: col.bg, borderColor: col.border }}
+                                className="w-3.5 h-3.5 rounded-full border inline-block shrink-0"
+                              />
+                              <span className="truncate text-[#1D231F]">{emp.nombre}</span>
+                            </span>
+                            <span className="text-[11px] font-black text-[#063B2E]">{cant} vis</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Registrar descanso en el día */}
+                    <div className="border-t border-[#063B2E]/15 pt-2.5 flex flex-col gap-2">
+                      <p className="text-xs font-black text-[#063B2E]">🛋️ Descanso en el día</p>
+                      <input
+                        type="text"
+                        value={horaDescansoInput}
+                        onChange={(e) => setHoraDescansoInput(e.target.value)}
+                        placeholder="Hora (ej. 12:00 PM)"
+                        className="p-2 rounded-lg border border-[#063B2E] text-xs text-[#1D231F]"
+                      />
+                      <input
+                        type="text"
+                        value={notaDescansoInput}
+                        onChange={(e) => setNotaDescansoInput(e.target.value)}
+                        placeholder="Nota del descanso"
+                        className="p-2 rounded-lg border border-[#063B2E] text-xs text-[#1D231F]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nuevoDesc = {
+                            id: `${Date.now()}`,
+                            usuarioId: usuarioActual.id,
+                            nombre: usuarioActual.nombre,
+                            rol: usuarioActual.rol,
+                            fecha: fechaCalendarioSel,
+                            hora: horaDescansoInput.trim() || "12:00 PM",
+                            nota: notaDescansoInput.trim() || "Descanso del día",
+                          };
+                          setDescansosCalendario((prev) => [...prev, nuevoDesc]);
+                          const msg = `Descanso registrado para ${usuarioActual.nombre} el ${fechaLarga(fechaCalendarioSel)} a las ${nuevoDesc.hora}.`;
+                          setMensajeSistema(msg);
+                          hablar(msg);
+                        }}
+                        className="w-full py-2 px-3 rounded-xl bg-[#F28C00] text-[#1D231F] border border-[#063B2E] text-xs font-black"
+                      >
+                        + Guardar descanso
+                      </button>
+                    </div>
+                  </aside>
+                </div>
+              );
+            })()}
+          </section>
+        )}
+
         {esAdmin && (() => {
           const solPendientes = solicitudes.filter(
             (s) => s.estado !== "recolectada" && s.estado !== "cancelada"
@@ -2186,314 +2946,380 @@ export default function EcoConectaPage() {
 
           return (
             <section className="flex flex-col gap-5">
-              {/* BLOQUE SUPERIOR: SOLICITUDES CON MINI PESTANAS EN LA ESQUINA */}
-              <div className="bg-white p-4 rounded-2xl border-2 border-amber-500 flex flex-col gap-3">
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 pb-3">
-                  <div>
-                    <h2 className="font-black text-base text-stone-900">
-                      📋 Solicitudes ({solicitudesAdminVisibles.length})
-                    </h2>
-                    <p className="text-xs text-stone-600">
-                      {filtroAdminSol === "pendientes"
-                        ? "Mostrando solicitudes pendientes por gestionar."
-                        : filtroAdminSol === "completadas"
-                        ? "Mostrando recolecciones ya completadas."
-                        : "Mostrando el historial completo de solicitudes."}
-                    </p>
-                  </div>
+              {/* BLOQUE SUPERIOR: FILTROS JERARQUICOS (PENDIENTES / COMPLETADAS / TODAS + RECOLECCION / EQUIPO + HUERTEROS / RECICLADORES) */}
+              {(() => {
+                const pendientesRecoleccion = solicitudes.filter(
+                  (s) => s.estado !== "recolectada" && s.estado !== "cancelada"
+                );
+                const completadasRecoleccion = solicitudes.filter((s) => s.estado === "recolectada");
 
-                  {/* Mini pestanas en la esquina superior derecha */}
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFiltroAdminSol("todas");
-                        hablar(`Pestaña todas las solicitudes, ${solicitudes.length} en total.`);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
-                        filtroAdminSol === "todas"
-                          ? "bg-stone-900 text-white border-stone-950"
-                          : "bg-stone-100 text-stone-800 border-stone-300 hover:bg-stone-200"
-                      }`}
-                    >
-                      Todas ({solicitudes.length})
-                    </button>
+                const pendientesEquipo = usuarios.filter((u) => !u.aprobado);
+                const aprobadosEquipo = usuarios.filter((u) => u.aprobado);
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFiltroAdminSol("pendientes");
-                        hablar(`Pestaña pendientes, ${solPendientes.length} solicitudes por atender.`);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
-                        filtroAdminSol === "pendientes"
-                          ? "bg-amber-600 text-white border-amber-900"
-                          : "bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100"
-                      }`}
-                    >
-                      Pendientes ({solPendientes.length})
-                    </button>
+                const recoleccionPorEstado =
+                  filtroAdminSol === "pendientes"
+                    ? pendientesRecoleccion
+                    : filtroAdminSol === "completadas"
+                    ? completadasRecoleccion
+                    : solicitudes;
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFiltroAdminSol("completadas");
-                        hablar(`Pestaña completadas, ${solCompletadas.length} recolecciones cerradas.`);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
-                        filtroAdminSol === "completadas"
-                          ? "bg-emerald-700 text-white border-emerald-950"
-                          : "bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100"
-                      }`}
-                    >
-                      Completadas ({solCompletadas.length})
-                    </button>
+                const equipoPorEstado =
+                  filtroAdminSol === "pendientes"
+                    ? pendientesEquipo
+                    : filtroAdminSol === "completadas"
+                    ? aprobadosEquipo
+                    : usuarios;
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (usuarioActual) {
-                          cargarDatosPrivados(usuarioActual, false);
-                          refrescarSolicitudesAdmin();
-                          hablar("Actualizando solicitudes y equipo operativo.");
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-sky-50 text-sky-950 border-sky-300 hover:bg-sky-100"
-                    >
-                      🔄 Actualizar
-                    </button>
-                  </div>
-                </div>
+                const recoleccionFiltrada = recoleccionPorEstado.filter((s) => {
+                  if (subFiltroCategoria === "equipo") return false;
+                  if (subFiltroFlujo === "huertero") return s.flujo === "organico";
+                  if (subFiltroFlujo === "reciclador") return s.flujo === "reciclable";
+                  return true;
+                });
 
-                {solicitudesAdminVisibles.length === 0 && (
-                  <p className="bg-stone-50 p-4 rounded-xl border text-xs font-bold text-stone-600 text-center">
-                    No hay solicitudes en la vista "{filtroAdminSol}".
-                  </p>
-                )}
+                const equipoFiltrado = equipoPorEstado.filter((u) => {
+                  if (subFiltroCategoria === "recoleccion") return false;
+                  if (subFiltroFlujo === "huertero") return u.rol === "huertero" || u.rol === "coord_huerteros";
+                  if (subFiltroFlujo === "reciclador") return u.rol === "reciclador" || u.rol === "coord_recicladores";
+                  return true;
+                });
 
-                <div className="flex flex-col gap-3">
-                  {solicitudesAdminVisibles.map((s) => {
-                    const rolNecesario = s.flujo === "organico" ? "huertero" : "reciclador";
-                    const equipoAprobado = usuarios.filter(
-                      (u) => u.rol === rolNecesario && u.aprobado
-                    );
+                const totalPendientesGeneral = pendientesRecoleccion.length + pendientesEquipo.length;
+                const totalCompletadasGeneral = completadasRecoleccion.length + aprobadosEquipo.length;
+                const totalTodasGeneral = solicitudes.length + usuarios.length;
 
-                    return (
-                      <div
-                        key={s.id}
-                        className="bg-stone-50 p-3.5 rounded-2xl border-2 border-stone-300 flex flex-col gap-2.5"
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span
-                                className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
-                                  s.estado === "recolectada"
-                                    ? "bg-emerald-100 text-emerald-950"
-                                    : "bg-amber-100 text-amber-950"
-                                }`}
-                              >
-                                {s.codigo} • {s.estado}
-                              </span>
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white border border-stone-300 text-stone-800">
-                                {s.flujo === "organico" ? "🌱 Orgánicos" : "♻️ Reciclables"}
-                              </span>
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-950 border border-green-400">
-                                {etiquetaCanalAdmin[s.canal_origen || "web"] || s.canal_origen}
-                              </span>
-                            </div>
+                return (
+                  <div className="bg-white p-4 rounded-2xl border-2 border-amber-500 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 pb-3">
+                      <div>
+                        <h2 className="font-black text-base text-stone-900">
+                          📋 Gestión Filtrada ({recoleccionFiltrada.length + equipoFiltrado.length})
+                        </h2>
+                        <p className="text-xs text-stone-600">
+                          Estado: <strong>{filtroAdminSol}</strong> • Categoría: <strong>{subFiltroCategoria}</strong> • Flujo: <strong>{subFiltroFlujo}</strong>
+                        </p>
+                      </div>
 
-                            <p className="font-extrabold text-base mt-1">{s.solicitante_nombre}</p>
-                            <p className="text-xs font-bold text-stone-800">📍 {s.solicitante_direccion}</p>
-                            <p className="text-xs text-green-800 font-bold">📱 WhatsApp: +{s.solicitante_telefono}</p>
-                            <p className="text-xs text-stone-600">⏰ {s.disponibilidad_horaria}</p>
-                            {s.fecha_programada && (
-                              <p className="text-xs font-extrabold text-emerald-900 mt-0.5">
-                                📅 Programada: {s.fecha_programada} {s.hora_programada ? `• ${s.hora_programada}` : ""}
-                              </p>
-                            )}
-                            {s.descripcion && (
-                              <p className="text-xs text-stone-800 bg-white p-2 rounded-lg border mt-1">
-                                📝 <strong>Detalle:</strong> {s.descripcion}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                hablar(
-                                  `Solicitud ${s.codigo}, estado ${s.estado}, tipo ${
-                                    s.flujo === "organico" ? "residuos orgánicos" : "residuos reciclables"
-                                  }. Vecino ${s.solicitante_nombre}, dirección ${s.solicitante_direccion}, horario ${
-                                    s.disponibilidad_horaria
-                                  }.${s.descripcion ? ` Detalle: ${s.descripcion}` : ""}`
-                                )
-                              }
-                              className="px-2.5 py-1.5 bg-amber-100 text-amber-950 rounded-lg text-xs font-bold"
-                            >
-                              🔊 Escuchar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                hablar("Editar solicitud");
-                                setEditandoSolId(editandoSolId === s.id ? null : s.id);
-                                setEditSolNombre(s.solicitante_nombre);
-                                setEditSolDir(s.solicitante_direccion);
-                                setEditSolTel(s.solicitante_telefono);
-                                setEditSolHorario(s.disponibilidad_horaria);
-                                setEditSolEstado(s.estado);
-                              }}
-                              className="px-2.5 py-1.5 bg-sky-100 text-sky-900 rounded-lg text-xs font-bold"
-                            >
-                              ✏️ Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => eliminarSolicitud(s.id)}
-                              className="px-2.5 py-1.5 bg-red-100 text-red-900 rounded-lg text-xs font-bold"
-                            >
-                              🗑️ Eliminar
-                            </button>
-                          </div>
-                        </div>
-
-                        {editandoSolId === s.id && (
-                          <div className="bg-sky-50 p-3 rounded-xl border border-sky-300 flex flex-col gap-2">
-                            <input
-                              type="text"
-                              value={editSolNombre}
-                              onFocus={() => hablar("Editar nombre del solicitante")}
-                              onChange={(e) => setEditSolNombre(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="Nombre solicitante"
-                            />
-                            <input
-                              type="text"
-                              value={editSolDir}
-                              onFocus={() => hablar("Editar dirección de recolección")}
-                              onChange={(e) => setEditSolDir(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="Dirección"
-                            />
-                            <input
-                              type="text"
-                              value={editSolTel}
-                              onFocus={() => hablar("Editar número de WhatsApp")}
-                              onChange={(e) => setEditSolTel(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="WhatsApp"
-                            />
-                            <select
-                              value={editSolEstado}
-                              onFocus={() => hablar("Cambiar estado de la solicitud")}
-                              onChange={(e) => setEditSolEstado(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white font-bold"
-                            >
-                              <option value="recibida">recibida</option>
-                              <option value="en_revision">en_revision</option>
-                              <option value="programada">programada</option>
-                              <option value="recolectada">recolectada</option>
-                              <option value="cancelada">cancelada</option>
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                guardarEdicionSolicitud(s.id);
-                                setTimeout(refrescarSolicitudesAdmin, 400);
-                              }}
-                              className="bg-sky-700 text-white font-bold py-2 rounded-lg text-xs"
-                            >
-                              Guardar Cambios
-                            </button>
-                          </div>
-                        )}
-
-                        {s.estado !== "recolectada" && s.estado !== "cancelada" && (
-                          <div className="bg-white p-3 rounded-xl border flex flex-col gap-2">
-                            <select
-                              className="p-2 rounded-lg border bg-white text-xs font-bold"
-                              value={recolectorSel[s.id] || s.recolector_id || ""}
-                              onFocus={() => hablar(`Selecciona el ${rolNecesario} aprobado para asignar esta solicitud`)}
-                              onChange={(e) =>
-                                setRecolectorSel({ ...recolectorSel, [s.id]: Number(e.target.value) })
-                              }
-                            >
-                              <option value="">1. Asignar {rolNecesario} aprobado...</option>
-                              {equipoAprobado.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.nombre} ({r.vehiculo_herramienta || "Sin vehículo"})
-                                </option>
-                              ))}
-                            </select>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="date"
-                                className="p-2 rounded-lg border bg-white text-xs"
-                                value={fechaSel[s.id] || s.fecha_programada || ""}
-                                onFocus={() => hablar("Selecciona la fecha de recolección")}
-                                onChange={(e) => setFechaSel({ ...fechaSel, [s.id]: e.target.value })}
-                              />
-                              <input
-                                type="text"
-                                placeholder="Hora asignada (ej. 9:00 AM)"
-                                className="p-2 rounded-lg border bg-white text-xs"
-                                value={horaSel[s.id] || s.hora_programada || ""}
-                                onFocus={() => hablar("Escribe la hora asignada para la recolección")}
-                                onChange={(e) => setHoraSel({ ...horaSel, [s.id]: e.target.value })}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  programarSolicitud(s.id);
-                                  setTimeout(refrescarSolicitudesAdmin, 400);
-                                }}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
-                              >
-                                📅 Programar y WhatsApp
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  cerrarRecoleccion(s.id);
-                                  setTimeout(refrescarSolicitudesAdmin, 400);
-                                }}
-                                className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
-                              >
-                                ✅ Marcar Completada
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroAdminSol("todas");
+                            hablar(`Pestaña todas, ${totalTodasGeneral} registros.`);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
+                            filtroAdminSol === "todas"
+                              ? "bg-stone-900 text-white border-stone-950"
+                              : "bg-stone-100 text-stone-800 border-stone-300"
+                          }`}
+                        >
+                          Todas ({totalTodasGeneral})
+                        </button>
 
                         <button
                           type="button"
-                          onClick={() => verHistorial(s.id)}
-                          className="text-xs font-bold text-sky-800 underline text-left"
+                          onClick={() => {
+                            setFiltroAdminSol("pendientes");
+                            hablar(
+                              `Pendientes: ${pendientesRecoleccion.length} recolecciones y ${pendientesEquipo.length} perfiles de equipo por aprobar.`
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
+                            filtroAdminSol === "pendientes"
+                              ? "bg-amber-600 text-white border-amber-900"
+                              : "bg-amber-50 text-amber-950 border-amber-300"
+                          }`}
                         >
-                          {historialAbierto[s.id] ? "Ocultar trazabilidad" : "Ver trazabilidad"}
+                          Pendientes ({totalPendientesGeneral})
                         </button>
 
-                        {historialAbierto[s.id] && (
-                          <ul className="bg-white p-2.5 rounded-xl border text-xs flex flex-col gap-1">
-                            {historialAbierto[s.id].map((h) => (
-                              <li key={h.id}>
-                                <strong>{h.estado_nuevo.toUpperCase()}</strong> ({h.actor_nombre}): {h.observacion}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroAdminSol("completadas");
+                            hablar(
+                              `Completadas: ${completadasRecoleccion.length} recolecciones cerradas y ${aprobadosEquipo.length} integrantes aprobados.`
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
+                            filtroAdminSol === "completadas"
+                              ? "bg-emerald-700 text-white border-emerald-950"
+                              : "bg-emerald-50 text-emerald-950 border-emerald-300"
+                          }`}
+                        >
+                          Completadas ({totalCompletadasGeneral})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (usuarioActual) {
+                              cargarDatosPrivados(usuarioActual, false);
+                              refrescarSolicitudesAdmin();
+                              hablar("Actualizando solicitudes y equipo operativo.");
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-sky-50 text-sky-950 border-sky-300"
+                        >
+                          🔄 Actualizar
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+
+                    {/* Subfiltro 1: Recolección vs Equipo Operativo */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          { id: "todo", label: "Todo" },
+                          { id: "recoleccion", label: "🚛 Recolección" },
+                          { id: "equipo", label: "👷 Equipo Operativo" },
+                        ] as const
+                      ).map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setSubFiltroCategoria(cat.id);
+                            hablar(`Filtro de categoría: ${cat.label}`);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border ${
+                            subFiltroCategoria === cat.id
+                              ? "bg-emerald-700 text-white border-emerald-950"
+                              : "bg-stone-50 text-stone-700 border-stone-300"
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Subfiltro 2: Huerteros (Orgánicos) vs Recicladores (Reciclables) */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          { id: "todos", label: "Todos los flujos" },
+                          { id: "huertero", label: "🌱 Huerteros (Orgánicos)" },
+                          { id: "reciclador", label: "♻️ Recicladores (Reciclables)" },
+                        ] as const
+                      ).map((fl) => (
+                        <button
+                          key={fl.id}
+                          type="button"
+                          onClick={() => {
+                            setSubFiltroFlujo(fl.id);
+                            hablar(`Subfiltro: ${fl.label}`);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border ${
+                            subFiltroFlujo === fl.id
+                              ? "bg-sky-700 text-white border-sky-950"
+                              : "bg-stone-50 text-stone-700 border-stone-300"
+                          }`}
+                        >
+                          {fl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Equipo operativo correspondiente al estado y subfiltros */}
+                    {equipoFiltrado.length > 0 && (
+                      <div className="flex flex-col gap-2 pt-1">
+                        <p className="text-xs font-black text-stone-800">
+                          👷 Equipo Operativo en "{filtroAdminSol}" ({equipoFiltrado.length})
+                        </p>
+                        {equipoFiltrado.map((u) => (
+                          <div
+                            key={u.id}
+                            className="bg-amber-50/60 p-3 rounded-xl border border-amber-300 flex justify-between items-start gap-2"
+                          >
+                            <div>
+                              <span className="text-[11px] font-black bg-stone-200 px-2 py-0.5 rounded uppercase mr-1.5">
+                                {u.rol}
+                              </span>
+                              <span
+                                className={`text-[11px] font-black px-2 py-0.5 rounded ${
+                                  u.aprobado ? "bg-emerald-100 text-emerald-900" : "bg-amber-200 text-amber-950"
+                                }`}
+                              >
+                                {u.aprobado ? "✅ Aprobado" : "⏳ Pendiente por aprobar"}
+                              </span>
+                              <p className="font-black text-sm mt-1">{u.nombre}</p>
+                              <p className="text-xs text-stone-700">
+                                📱 +{u.telefono} • 📍 {u.direccion}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  hablar(
+                                    `${u.nombre}, rol ${u.rol}, ${
+                                      u.aprobado ? "aprobado" : "pendiente de aprobación"
+                                    }, dirección ${u.direccion}.`
+                                  )
+                                }
+                                className="bg-amber-100 text-amber-950 font-bold text-xs px-2.5 py-1 rounded-lg"
+                              >
+                                🔊 Escuchar
+                              </button>
+                              {!u.aprobado && (
+                                <button
+                                  type="button"
+                                  onClick={() => aprobarOEditarUsuario(u, true)}
+                                  className="bg-emerald-600 text-white font-bold text-xs px-2.5 py-1 rounded-lg"
+                                >
+                                  ✅ Aprobar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Solicitudes de recolección correspondientes al estado y subfiltros */}
+                    {recoleccionFiltrada.length > 0 && (
+                      <div className="flex flex-col gap-2.5 pt-1">
+                        <p className="text-xs font-black text-stone-800">
+                          🚛 Solicitudes de Recolección en "{filtroAdminSol}" ({recoleccionFiltrada.length})
+                        </p>
+                        {recoleccionFiltrada.map((s) => {
+                          const rolNecesario = s.flujo === "organico" ? "huertero" : "reciclador";
+                          const equipoAprobado = usuarios.filter(
+                            (u) => u.rol === rolNecesario && u.aprobado
+                          );
+                          return (
+                            <div
+                              key={s.id}
+                              className="bg-stone-50 p-3.5 rounded-2xl border-2 border-stone-300 flex flex-col gap-2"
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span
+                                      className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                                        s.estado === "recolectada"
+                                          ? "bg-emerald-100 text-emerald-950"
+                                          : "bg-amber-100 text-amber-950"
+                                      }`}
+                                    >
+                                      {s.codigo} • {s.estado}
+                                    </span>
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white border border-stone-300 text-stone-800">
+                                      {s.flujo === "organico" ? "🌱 Huerteros (Orgánicos)" : "♻️ Recicladores (Reciclables)"}
+                                    </span>
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-950 border border-green-400">
+                                      {etiquetaCanalAdmin[s.canal_origen || "web"] || s.canal_origen}
+                                    </span>
+                                  </div>
+                                  <p className="font-extrabold text-base mt-1">{s.solicitante_nombre}</p>
+                                  <p className="text-xs font-bold text-stone-800">📍 {s.solicitante_direccion}</p>
+                                  <p className="text-xs text-green-800 font-bold">📱 WhatsApp: +{s.solicitante_telefono}</p>
+                                  <p className="text-xs text-stone-600">⏰ {s.disponibilidad_horaria}</p>
+                                  {s.descripcion && (
+                                    <p className="text-xs text-stone-800 bg-white p-2 rounded-lg border mt-1">
+                                      📝 <strong>Detalle:</strong> {s.descripcion}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      hablar(
+                                        `Solicitud ${s.codigo}, ${
+                                          s.flujo === "organico" ? "de huerteros, residuos orgánicos" : "de recicladores, residuos reciclables"
+                                        }, estado ${s.estado}. ${s.solicitante_nombre}, dirección ${s.solicitante_direccion}.`
+                                      )
+                                    }
+                                    className="px-2.5 py-1.5 bg-amber-100 text-amber-950 rounded-lg text-xs font-bold"
+                                  >
+                                    🔊 Escuchar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => eliminarSolicitud(s.id)}
+                                    className="px-2.5 py-1.5 bg-red-100 text-red-900 rounded-lg text-xs font-bold"
+                                  >
+                                    🗑️ Eliminar
+                                  </button>
+                                </div>
+                              </div>
+
+                              {s.estado !== "recolectada" && s.estado !== "cancelada" && (
+                                <div className="bg-white p-3 rounded-xl border flex flex-col gap-2">
+                                  <select
+                                    className="p-2 rounded-lg border bg-white text-xs font-bold"
+                                    value={recolectorSel[s.id] || s.recolector_id || ""}
+                                    onFocus={() => hablar(`Selecciona el ${rolNecesario} aprobado`)}
+                                    onChange={(e) =>
+                                      setRecolectorSel({ ...recolectorSel, [s.id]: Number(e.target.value) })
+                                    }
+                                  >
+                                    <option value="">1. Asignar {rolNecesario} aprobado...</option>
+                                    {equipoAprobado.map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        {r.nombre} ({r.vehiculo_herramienta || "Sin vehículo"})
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                      type="date"
+                                      className="p-2 rounded-lg border bg-white text-xs"
+                                      value={fechaSel[s.id] || s.fecha_programada || ""}
+                                      onFocus={() => hablar("Selecciona la fecha")}
+                                      onChange={(e) => setFechaSel({ ...fechaSel, [s.id]: e.target.value })}
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Hora asignada"
+                                      className="p-2 rounded-lg border bg-white text-xs"
+                                      value={horaSel[s.id] || s.hora_programada || ""}
+                                      onFocus={() => hablar("Escribe la hora asignada")}
+                                      onChange={(e) => setHoraSel({ ...horaSel, [s.id]: e.target.value })}
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        programarSolicitud(s.id);
+                                        setTimeout(refrescarSolicitudesAdmin, 400);
+                                      }}
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
+                                    >
+                                      📅 Programar y WhatsApp
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        cerrarRecoleccion(s.id);
+                                        setTimeout(refrescarSolicitudesAdmin, 400);
+                                      }}
+                                      className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
+                                    >
+                                      ✅ Marcar Completada
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {recoleccionFiltrada.length === 0 && equipoFiltrado.length === 0 && (
+                      <p className="bg-stone-50 p-4 rounded-xl border text-xs font-bold text-stone-600 text-center">
+                        No hay registros en "{filtroAdminSol}" con los filtros seleccionados.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* SECCION INFERIOR 1: EQUIPO OPERATIVO */}
               <div className="bg-white p-4 rounded-2xl border-2 border-stone-400 flex flex-col gap-3">
@@ -2809,3 +3635,4 @@ export default function EcoConectaPage() {
     </main>
   );
 }
+
