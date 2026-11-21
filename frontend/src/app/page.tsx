@@ -1903,23 +1903,93 @@ export default function EcoConectaPage() {
 
             {vistaCoord === "equipo" && (
               <div className="flex flex-col gap-4">
-                <div className="bg-white p-4 rounded-2xl border-2 border-emerald-600 flex flex-col gap-2">
-                  <h3 className="font-black text-sm">➕ Añadir Nuevo {rolEquipoCoord}</h3>
-                  <input type="text" placeholder="Nombre completo *" value={nuevoStaffNombre} onChange={(e) => setNuevoStaffNombre(e.target.value)} className="p-2 border rounded text-xs" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input type="text" placeholder="Usuario *" value={nuevoStaffUser} onChange={(e) => setNuevoStaffUser(e.target.value)} className="p-2 border rounded text-xs" />
-                    <input type="password" placeholder="Contraseña *" value={nuevoStaffPass} onChange={(e) => setNuevoStaffPass(e.target.value)} className="p-2 border rounded text-xs" />
+                <div className="bg-white p-4 rounded-2xl border-2 border-emerald-600 flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <h3 className="font-black text-base text-emerald-950">➕ Añadir Nuevo {rolEquipoCoord}</h3>
+                      <p className="text-xs text-stone-600">
+                        Toca cada cuadro para escuchar la instrucción de voz antes de escribir.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        hablar(
+                          `Formulario para añadir nuevo ${rolEquipoCoord}. Toca cada casilla para escuchar qué dato debes escribir y al terminar presiona Guardar y Activar ${rolEquipoCoord}.`
+                        )
+                      }
+                      className="bg-emerald-100 text-emerald-950 font-extrabold text-xs px-3 py-2 rounded-xl border border-emerald-600"
+                    >
+                      🔊 Escuchar guía
+                    </button>
                   </div>
-                  <input type="tel" placeholder="Número de WhatsApp *" value={nuevoStaffTel} onChange={(e) => setNuevoStaffTel(e.target.value)} className="p-2 border rounded text-xs" />
-                  <input type="text" placeholder="Dirección *" value={nuevoStaffDir} onChange={(e) => setNuevoStaffDir(e.target.value)} className="p-2 border rounded text-xs" />
-                  <input type="text" placeholder="Vehículo / Herramienta" value={nuevoStaffVehiculo} onChange={(e) => setNuevoStaffVehiculo(e.target.value)} className="p-2 border rounded text-xs" />
-                  <input type="text" placeholder="Requerimientos operativos" value={nuevoStaffReq} onChange={(e) => setNuevoStaffReq(e.target.value)} className="p-2 border rounded text-xs" />
+                  <input
+                    type="text"
+                    placeholder="Nombre completo *"
+                    value={nuevoStaffNombre}
+                    onFocus={() => hablar(`Paso uno: escribe el nombre completo del nuevo ${rolEquipoCoord}.`)}
+                    onChange={(e) => setNuevoStaffNombre(e.target.value)}
+                    className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Usuario *"
+                      value={nuevoStaffUser}
+                      onFocus={() => hablar("Paso dos: escribe un nombre de usuario para iniciar sesión.")}
+                      onChange={(e) => setNuevoStaffUser(e.target.value)}
+                      className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                    />
+                    <input
+                      type="password"
+                      placeholder="Contraseña *"
+                      value={nuevoStaffPass}
+                      onFocus={() => hablar("Paso tres: escribe una contraseña fácil de recordar.")}
+                      onChange={(e) => setNuevoStaffPass(e.target.value)}
+                      className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                    />
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="Número de WhatsApp *"
+                    value={nuevoStaffTel}
+                    onFocus={() => hablar(`Paso cuatro: escribe el número de WhatsApp del ${rolEquipoCoord}.`)}
+                    onChange={(e) => setNuevoStaffTel(e.target.value)}
+                    className="p-3 border-2 border-green-500 rounded-xl text-xs font-bold"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Dirección *"
+                    value={nuevoStaffDir}
+                    onFocus={() => hablar(`Paso cinco: escribe la dirección, manzana y casa del ${rolEquipoCoord}.`)}
+                    onChange={(e) => setNuevoStaffDir(e.target.value)}
+                    className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Vehículo / Herramienta"
+                    value={nuevoStaffVehiculo}
+                    onFocus={() => hablar("Paso seis: escribe qué vehículo o herramienta de trabajo tiene, como carretilla, triciclo o motocarro.")}
+                    onChange={(e) => setNuevoStaffVehiculo(e.target.value)}
+                    className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Requerimientos operativos"
+                    value={nuevoStaffReq}
+                    onFocus={() => hablar("Paso siete: escribe sus horarios disponibles, sectores y capacidad de recolección.")}
+                    onChange={(e) => setNuevoStaffReq(e.target.value)}
+                    className="p-3 border-2 border-stone-300 rounded-xl text-xs"
+                  />
                   <button
                     type="button"
-                    onClick={() => crearUsuarioDesdeStaff(rolEquipoCoord)}
-                    className="bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs"
+                    onClick={() => {
+                      hablar(`Guardando y activando nuevo ${rolEquipoCoord}.`);
+                      crearUsuarioDesdeStaff(rolEquipoCoord);
+                    }}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-3 rounded-xl text-xs"
                   >
-                    Guardar y Activar {rolEquipoCoord}
+                    ✅ Guardar y Activar {rolEquipoCoord}
                   </button>
                 </div>
 
