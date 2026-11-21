@@ -2049,13 +2049,13 @@ export default function EcoConectaPage() {
               : solicitudes;
 
           const etiquetaCanalAdmin: Record<string, string> = {
-            whatsapp_cloud: "\uD83E\uDD16 Camilo WA Cloud",
-            whatsapp_audio: "\uD83C\uDF99\uFE0F Audio WA Business",
-            whatsapp_texto: "\uD83D\uDCAC Chat WA Business",
-            whatsapp_foto: "\uD83D\uDCF8 Foto WA Business",
-            whatsapp_ubicacion: "\uD83D\uDCCD Ubicaci\u00f3n WA",
-            asistente_web: "\uD83D\uDCAC Asistente Web",
-            web: "\uD83C\uDF10 Web",
+            whatsapp_cloud: "🤖 Camilo WA Cloud",
+            whatsapp_audio: "🎙️ Audio WA Business",
+            whatsapp_texto: "💬 Chat WA Business",
+            whatsapp_foto: "📸 Foto WA Business",
+            whatsapp_ubicacion: "📍 Ubicación WA",
+            asistente_web: "💬 Asistente Web",
+            web: "🌐 Web",
           };
 
           return (
@@ -2065,7 +2065,7 @@ export default function EcoConectaPage() {
                 <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 pb-3">
                   <div>
                     <h2 className="font-black text-base text-stone-900">
-                      \uD83D\uDCCB Solicitudes ({solicitudesAdminVisibles.length})
+                      📋 Solicitudes ({solicitudesAdminVisibles.length})
                     </h2>
                     <p className="text-xs text-stone-600">
                       {filtroAdminSol === "pendientes"
@@ -2082,7 +2082,7 @@ export default function EcoConectaPage() {
                       type="button"
                       onClick={() => {
                         setFiltroAdminSol("todas");
-                        hablar(`Pesta\u00f1a todas las solicitudes, ${solicitudes.length} en total.`);
+                        hablar(`Pestaña todas las solicitudes, ${solicitudes.length} en total.`);
                       }}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
                         filtroAdminSol === "todas"
@@ -2097,7 +2097,7 @@ export default function EcoConectaPage() {
                       type="button"
                       onClick={() => {
                         setFiltroAdminSol("pendientes");
-                        hablar(`Pesta\u00f1a pendientes, ${solPendientes.length} solicitudes por atender.`);
+                        hablar(`Pestaña pendientes, ${solPendientes.length} solicitudes por atender.`);
                       }}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
                         filtroAdminSol === "pendientes"
@@ -2112,7 +2112,7 @@ export default function EcoConectaPage() {
                       type="button"
                       onClick={() => {
                         setFiltroAdminSol("completadas");
-                        hablar(`Pesta\u00f1a completadas, ${solCompletadas.length} recolecciones cerradas.`);
+                        hablar(`Pestaña completadas, ${solCompletadas.length} recolecciones cerradas.`);
                       }}
                       className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
                         filtroAdminSol === "completadas"
@@ -2134,7 +2134,7 @@ export default function EcoConectaPage() {
                       }}
                       className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-sky-50 text-sky-950 border-sky-300 hover:bg-sky-100"
                     >
-                      \uD83D\uDD04 Actualizar
+                      🔄 Actualizar
                     </button>
                   </div>
                 </div>
@@ -2167,10 +2167,10 @@ export default function EcoConectaPage() {
                                     : "bg-amber-100 text-amber-950"
                                 }`}
                               >
-                                {s.codigo} \u2022 {s.estado}
+                                {s.codigo} • {s.estado}
                               </span>
                               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white border border-stone-300 text-stone-800">
-                                {s.flujo === "organico" ? "\uD83C\uDF31 Org\u00e1nicos" : "\u267B\uFE0F Reciclables"}
+                                {s.flujo === "organico" ? "🌱 Orgánicos" : "♻️ Reciclables"}
                               </span>
                               <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-950 border border-green-400">
                                 {etiquetaCanalAdmin[s.canal_origen || "web"] || s.canal_origen}
@@ -2178,17 +2178,17 @@ export default function EcoConectaPage() {
                             </div>
 
                             <p className="font-extrabold text-base mt-1">{s.solicitante_nombre}</p>
-                            <p className="text-xs font-bold text-stone-800">\uD83D\uDCCD {s.solicitante_direccion}</p>
-                            <p className="text-xs text-green-800 font-bold">\uD83D\uDCF1 WhatsApp: +{s.solicitante_telefono}</p>
-                            <p className="text-xs text-stone-600">\u23F0 {s.disponibilidad_horaria}</p>
+                            <p className="text-xs font-bold text-stone-800">📍 {s.solicitante_direccion}</p>
+                            <p className="text-xs text-green-800 font-bold">📱 WhatsApp: +{s.solicitante_telefono}</p>
+                            <p className="text-xs text-stone-600">⏰ {s.disponibilidad_horaria}</p>
                             {s.fecha_programada && (
                               <p className="text-xs font-extrabold text-emerald-900 mt-0.5">
-                                \uD83D\uDCC5 Programada: {s.fecha_programada} {s.hora_programada ? `\u2022 ${s.hora_programada}` : ""}
+                                📅 Programada: {s.fecha_programada} {s.hora_programada ? `• ${s.hora_programada}` : ""}
                               </p>
                             )}
                             {s.descripcion && (
                               <p className="text-xs text-stone-800 bg-white p-2 rounded-lg border mt-1">
-                                \uD83D\uDCDD <strong>Detalle:</strong> {s.descripcion}
+                                📝 <strong>Detalle:</strong> {s.descripcion}
                               </p>
                             )}
                           </div>
@@ -2199,15 +2199,15 @@ export default function EcoConectaPage() {
                               onClick={() =>
                                 hablar(
                                   `Solicitud ${s.codigo}, estado ${s.estado}, tipo ${
-                                    s.flujo === "organico" ? "residuos org\u00e1nicos" : "residuos reciclables"
-                                  }. Vecino ${s.solicitante_nombre}, direcci\u00f3n ${s.solicitante_direccion}, horario ${
+                                    s.flujo === "organico" ? "residuos orgánicos" : "residuos reciclables"
+                                  }. Vecino ${s.solicitante_nombre}, dirección ${s.solicitante_direccion}, horario ${
                                     s.disponibilidad_horaria
                                   }.${s.descripcion ? ` Detalle: ${s.descripcion}` : ""}`
                                 )
                               }
                               className="px-2.5 py-1.5 bg-amber-100 text-amber-950 rounded-lg text-xs font-bold"
                             >
-                              \uD83D\uDD0A Escuchar
+                              🔊 Escuchar
                             </button>
                             <button
                               type="button"
@@ -2222,14 +2222,14 @@ export default function EcoConectaPage() {
                               }}
                               className="px-2.5 py-1.5 bg-sky-100 text-sky-900 rounded-lg text-xs font-bold"
                             >
-                              \u270F\uFE0F Editar
+                              ✏️ Editar
                             </button>
                             <button
                               type="button"
                               onClick={() => eliminarSolicitud(s.id)}
                               className="px-2.5 py-1.5 bg-red-100 text-red-900 rounded-lg text-xs font-bold"
                             >
-                              \uD83D\uDDD1\uFE0F Eliminar
+                              🗑️ Eliminar
                             </button>
                           </div>
                         </div>
@@ -2247,15 +2247,15 @@ export default function EcoConectaPage() {
                             <input
                               type="text"
                               value={editSolDir}
-                              onFocus={() => hablar("Editar direcci\u00f3n de recolecci\u00f3n")}
+                              onFocus={() => hablar("Editar dirección de recolección")}
                               onChange={(e) => setEditSolDir(e.target.value)}
                               className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="Direcci\u00f3n"
+                              placeholder="Dirección"
                             />
                             <input
                               type="text"
                               value={editSolTel}
-                              onFocus={() => hablar("Editar n\u00famero de WhatsApp")}
+                              onFocus={() => hablar("Editar número de WhatsApp")}
                               onChange={(e) => setEditSolTel(e.target.value)}
                               className="p-2 border rounded-lg text-xs bg-white"
                               placeholder="WhatsApp"
@@ -2298,7 +2298,7 @@ export default function EcoConectaPage() {
                               <option value="">1. Asignar {rolNecesario} aprobado...</option>
                               {equipoAprobado.map((r) => (
                                 <option key={r.id} value={r.id}>
-                                  {r.nombre} ({r.vehiculo_herramienta || "Sin veh\u00edculo"})
+                                  {r.nombre} ({r.vehiculo_herramienta || "Sin vehículo"})
                                 </option>
                               ))}
                             </select>
@@ -2308,7 +2308,7 @@ export default function EcoConectaPage() {
                                 type="date"
                                 className="p-2 rounded-lg border bg-white text-xs"
                                 value={fechaSel[s.id] || s.fecha_programada || ""}
-                                onFocus={() => hablar("Selecciona la fecha de recolecci\u00f3n")}
+                                onFocus={() => hablar("Selecciona la fecha de recolección")}
                                 onChange={(e) => setFechaSel({ ...fechaSel, [s.id]: e.target.value })}
                               />
                               <input
@@ -2316,7 +2316,7 @@ export default function EcoConectaPage() {
                                 placeholder="Hora asignada (ej. 9:00 AM)"
                                 className="p-2 rounded-lg border bg-white text-xs"
                                 value={horaSel[s.id] || s.hora_programada || ""}
-                                onFocus={() => hablar("Escribe la hora asignada para la recolecci\u00f3n")}
+                                onFocus={() => hablar("Escribe la hora asignada para la recolección")}
                                 onChange={(e) => setHoraSel({ ...horaSel, [s.id]: e.target.value })}
                               />
                             </div>
@@ -2330,7 +2330,7 @@ export default function EcoConectaPage() {
                                 }}
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
                               >
-                                \uD83D\uDCC5 Programar y WhatsApp
+                                📅 Programar y WhatsApp
                               </button>
                               <button
                                 type="button"
@@ -2340,7 +2340,7 @@ export default function EcoConectaPage() {
                                 }}
                                 className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
                               >
-                                \u2705 Marcar Completada
+                                ✅ Marcar Completada
                               </button>
                             </div>
                           </div>
@@ -2374,7 +2374,7 @@ export default function EcoConectaPage() {
                 <div className="flex items-center justify-between gap-2 border-b border-stone-200 pb-2">
                   <div>
                     <h2 className="font-black text-base text-stone-900">
-                      \uD83D\uDC77 Equipo Operativo ({usuarios.length})
+                      👷 Equipo Operativo ({usuarios.length})
                     </h2>
                     <p className="text-xs text-stone-600">
                       Huerteros, recicladores y coordinadores registrados en EcoConecta.
@@ -2384,12 +2384,12 @@ export default function EcoConectaPage() {
                     type="button"
                     onClick={() =>
                       hablar(
-                        `Secci\u00f3n Equipo Operativo. Hay ${usuarios.length} integrantes registrados. Aqu\u00ed puedes aprobar perfiles pendientes, editar sus datos o eliminarlos.`
+                        `Sección Equipo Operativo. Hay ${usuarios.length} integrantes registrados. Aquí puedes aprobar perfiles pendientes, editar sus datos o eliminarlos.`
                       )
                     }
                     className="bg-stone-100 text-stone-900 font-extrabold text-xs px-3 py-1.5 rounded-xl border border-stone-400"
                   >
-                    \uD83D\uDD0A Escuchar
+                    🔊 Escuchar
                   </button>
                 </div>
 
@@ -2405,17 +2405,17 @@ export default function EcoConectaPage() {
                             u.aprobado ? "bg-emerald-100 text-emerald-900" : "bg-amber-200 text-amber-950"
                           }`}
                         >
-                          {u.aprobado ? "\u2705 Aprobado" : "\u23F3 Pendiente de Aprobaci\u00f3n"}
+                          {u.aprobado ? "✅ Aprobado" : "⏳ Pendiente de Aprobación"}
                         </span>
                         <p className="font-black text-sm mt-1">{u.nombre}</p>
                         <p className="text-xs text-stone-600">
-                          Usuario: <strong>{u.username}</strong> \u2022 \uD83D\uDCF1 WhatsApp: +{u.telefono} \u2022 \uD83D\uDCCD {u.direccion}
+                          Usuario: <strong>{u.username}</strong> • 📱 WhatsApp: +{u.telefono} • 📍 {u.direccion}
                         </p>
                         {u.vehiculo_herramienta && (
-                          <p className="text-xs text-emerald-900 font-bold">\uD83D\uDE9B Equipo: {u.vehiculo_herramienta}</p>
+                          <p className="text-xs text-emerald-900 font-bold">🚛 Equipo: {u.vehiculo_herramienta}</p>
                         )}
                         {u.requerimientos_operativos && (
-                          <p className="text-xs text-stone-700">\uD83D\uDCDD Requerimientos: {u.requerimientos_operativos}</p>
+                          <p className="text-xs text-stone-700">📝 Requerimientos: {u.requerimientos_operativos}</p>
                         )}
                       </div>
                       <div className="flex flex-col gap-1">
@@ -2424,13 +2424,13 @@ export default function EcoConectaPage() {
                           onClick={() =>
                             hablar(
                               `Integrante ${u.nombre}, rol ${u.rol}, estado ${
-                                u.aprobado ? "aprobado" : "pendiente de aprobaci\u00f3n"
-                              }, direcci\u00f3n ${u.direccion}.`
+                                u.aprobado ? "aprobado" : "pendiente de aprobación"
+                              }, dirección ${u.direccion}.`
                             )
                           }
                           className="bg-amber-100 text-amber-950 font-bold text-xs px-3 py-1.5 rounded-lg"
                         >
-                          \uD83D\uDD0A Escuchar
+                          🔊 Escuchar
                         </button>
                         {!u.aprobado && (
                           <button
@@ -2438,7 +2438,7 @@ export default function EcoConectaPage() {
                             onClick={() => aprobarOEditarUsuario(u, true)}
                             className="bg-emerald-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg"
                           >
-                            \u2705 Aprobar Perfil
+                            ✅ Aprobar Perfil
                           </button>
                         )}
                         <button
@@ -2446,7 +2446,7 @@ export default function EcoConectaPage() {
                           onClick={() => abrirEditorUsuario(u)}
                           className="bg-sky-100 text-sky-900 font-bold text-xs px-3 py-1.5 rounded-lg"
                         >
-                          \u270F\uFE0F Editar
+                          ✏️ Editar
                         </button>
                         {!["admin", "coord_huerteros", "coord_recicladores"].includes(u.username) && (
                           <button
@@ -2465,7 +2465,7 @@ export default function EcoConectaPage() {
                         <input type="text" value={editUserNombre} onFocus={() => hablar("Editar nombre completo")} onChange={(e) => setEditUserNombre(e.target.value)} placeholder="Nombre" className="p-2 border rounded text-xs" />
                         <div className="grid grid-cols-2 gap-2">
                           <input type="text" value={editUserUsername} onFocus={() => hablar("Editar nombre de usuario")} onChange={(e) => setEditUserUsername(e.target.value)} placeholder="Usuario" className="p-2 border rounded text-xs" />
-                          <input type="password" value={editUserPass} onFocus={() => hablar("Escribir nueva contrase\u00f1a opcional")} onChange={(e) => setEditUserPass(e.target.value)} placeholder="Nueva clave (opcional)" className="p-2 border rounded text-xs" />
+                          <input type="password" value={editUserPass} onFocus={() => hablar("Escribir nueva contraseña opcional")} onChange={(e) => setEditUserPass(e.target.value)} placeholder="Nueva clave (opcional)" className="p-2 border rounded text-xs" />
                         </div>
                         <select value={editUserRol} onFocus={() => hablar("Seleccionar rol del integrante")} onChange={(e) => setEditUserRol(e.target.value)} className="p-2 border rounded text-xs bg-white font-bold">
                           <option value="admin">admin</option>
@@ -2474,9 +2474,9 @@ export default function EcoConectaPage() {
                           <option value="huertero">huertero</option>
                           <option value="reciclador">reciclador</option>
                         </select>
-                        <input type="text" value={editUserTel} onFocus={() => hablar("Editar n\u00famero de WhatsApp")} onChange={(e) => setEditUserTel(e.target.value)} placeholder="WhatsApp" className="p-2 border rounded text-xs" />
-                        <input type="text" value={editUserDir} onFocus={() => hablar("Editar direcci\u00f3n o manzana y casa")} onChange={(e) => setEditUserDir(e.target.value)} placeholder="Direcci\u00f3n" className="p-2 border rounded text-xs" />
-                        <input type="text" value={editUserVehiculo} onFocus={() => hablar("Editar veh\u00edculo o herramienta")} onChange={(e) => setEditUserVehiculo(e.target.value)} placeholder="Veh\u00edculo/Herramienta" className="p-2 border rounded text-xs" />
+                        <input type="text" value={editUserTel} onFocus={() => hablar("Editar número de WhatsApp")} onChange={(e) => setEditUserTel(e.target.value)} placeholder="WhatsApp" className="p-2 border rounded text-xs" />
+                        <input type="text" value={editUserDir} onFocus={() => hablar("Editar dirección o manzana y casa")} onChange={(e) => setEditUserDir(e.target.value)} placeholder="Dirección" className="p-2 border rounded text-xs" />
+                        <input type="text" value={editUserVehiculo} onFocus={() => hablar("Editar vehículo o herramienta")} onChange={(e) => setEditUserVehiculo(e.target.value)} placeholder="Vehículo/Herramienta" className="p-2 border rounded text-xs" />
                         <input type="text" value={editUserReq} onFocus={() => hablar("Editar requerimientos operativos")} onChange={(e) => setEditUserReq(e.target.value)} placeholder="Requerimientos" className="p-2 border rounded text-xs" />
                         <button
                           type="button"
@@ -2495,21 +2495,21 @@ export default function EcoConectaPage() {
               <div className="bg-white p-4 rounded-2xl border-2 border-emerald-600 flex flex-col gap-2.5">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-black text-base text-emerald-950">\u2795 Nuevo Integrante</h3>
+                    <h3 className="font-black text-base text-emerald-950">➕ Nuevo Integrante</h3>
                     <p className="text-xs text-stone-600">
-                      Toca cada cuadro para escuchar la instrucci\u00f3n de voz antes de escribir.
+                      Toca cada cuadro para escuchar la instrucción de voz antes de escribir.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() =>
                       hablar(
-                        "Cuadro para agregar un nuevo integrante al equipo. Toca cada casilla para escuchar qu\u00e9 dato debes escribir y al terminar presiona Guardar y Activar Integrante."
+                        "Cuadro para agregar un nuevo integrante al equipo. Toca cada casilla para escuchar qué dato debes escribir y al terminar presiona Guardar y Activar Integrante."
                       )
                     }
                     className="bg-emerald-100 text-emerald-950 font-extrabold text-xs px-3 py-2 rounded-xl border border-emerald-600"
                   >
-                    \uD83D\uDD0A Escuchar gu\u00eda
+                    🔊 Escuchar guía
                   </button>
                 </div>
 
@@ -2526,7 +2526,7 @@ export default function EcoConectaPage() {
                   }}
                   className="p-3 border-2 border-emerald-500 rounded-xl text-xs font-bold bg-white"
                 >
-                  <option value="huertero">Huertero (Residuos Org\u00e1nicos)</option>
+                  <option value="huertero">Huertero (Residuos Orgánicos)</option>
                   <option value="reciclador">Reciclador (Residuos Reciclables)</option>
                   <option value="coord_huerteros">Coordinador de Huerteros</option>
                   <option value="coord_recicladores">Coordinador de Recicladores</option>
@@ -2547,15 +2547,15 @@ export default function EcoConectaPage() {
                     type="text"
                     placeholder="Usuario *"
                     value={nuevoStaffUser}
-                    onFocus={() => hablar("Paso tres: escribe un nombre de usuario para iniciar sesi\u00f3n.")}
+                    onFocus={() => hablar("Paso tres: escribe un nombre de usuario para iniciar sesión.")}
                     onChange={(e) => setNuevoStaffUser(e.target.value)}
                     className="p-3 border-2 border-stone-300 rounded-xl text-xs"
                   />
                   <input
                     type="password"
-                    placeholder="Contrase\u00f1a *"
+                    placeholder="Contraseña *"
                     value={nuevoStaffPass}
-                    onFocus={() => hablar("Paso cuatro: escribe una contrase\u00f1a f\u00e1cil de recordar.")}
+                    onFocus={() => hablar("Paso cuatro: escribe una contraseña fácil de recordar.")}
                     onChange={(e) => setNuevoStaffPass(e.target.value)}
                     className="p-3 border-2 border-stone-300 rounded-xl text-xs"
                   />
@@ -2563,28 +2563,28 @@ export default function EcoConectaPage() {
 
                 <input
                   type="tel"
-                  placeholder="N\u00famero de WhatsApp *"
+                  placeholder="Número de WhatsApp *"
                   value={nuevoStaffTel}
-                  onFocus={() => hablar("Paso cinco: escribe el n\u00famero de WhatsApp del integrante.")}
+                  onFocus={() => hablar("Paso cinco: escribe el número de WhatsApp del integrante.")}
                   onChange={(e) => setNuevoStaffTel(e.target.value)}
                   className="p-3 border-2 border-green-500 rounded-xl text-xs font-bold"
                 />
 
                 <input
                   type="text"
-                  placeholder="Direcci\u00f3n o Manzana / Casa *"
+                  placeholder="Dirección o Manzana / Casa *"
                   value={nuevoStaffDir}
-                  onFocus={() => hablar("Paso seis: escribe la direcci\u00f3n, manzana y casa del integrante.")}
+                  onFocus={() => hablar("Paso seis: escribe la dirección, manzana y casa del integrante.")}
                   onChange={(e) => setNuevoStaffDir(e.target.value)}
                   className="p-3 border-2 border-stone-300 rounded-xl text-xs"
                 />
 
                 <input
                   type="text"
-                  placeholder="Veh\u00edculo o herramienta de trabajo"
+                  placeholder="Vehículo o herramienta de trabajo"
                   value={nuevoStaffVehiculo}
                   onFocus={() =>
-                    hablar("Paso siete: escribe qu\u00e9 veh\u00edculo o herramienta de trabajo tiene, como carretilla, triciclo o motocarro.")
+                    hablar("Paso siete: escribe qué vehículo o herramienta de trabajo tiene, como carretilla, triciclo o motocarro.")
                   }
                   onChange={(e) => setNuevoStaffVehiculo(e.target.value)}
                   className="p-3 border-2 border-stone-300 rounded-xl text-xs"
@@ -2595,7 +2595,7 @@ export default function EcoConectaPage() {
                   placeholder="Requerimientos operativos, horarios o sectores"
                   value={nuevoStaffReq}
                   onFocus={() =>
-                    hablar("Paso ocho: escribe sus horarios disponibles, sectores y capacidad de recolecci\u00f3n.")
+                    hablar("Paso ocho: escribe sus horarios disponibles, sectores y capacidad de recolección.")
                   }
                   onChange={(e) => setNuevoStaffReq(e.target.value)}
                   className="p-3 border-2 border-stone-300 rounded-xl text-xs"
@@ -2609,7 +2609,7 @@ export default function EcoConectaPage() {
                   }}
                   className="bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold py-3 rounded-xl text-xs"
                 >
-                  \u2705 Guardar y Activar Integrante
+                  ✅ Guardar y Activar Integrante
                 </button>
               </div>
 
@@ -2617,7 +2617,7 @@ export default function EcoConectaPage() {
               {renderTarjetaConfigWhatsApp()}
 
               <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                <h3 className="font-black text-sm">Puntos por Recolecci\u00f3n</h3>
+                <h3 className="font-black text-sm">Puntos por Recolección</h3>
                 {reglasPuntos.map((r) => (
                   <div key={r.id} className="flex items-center justify-between gap-2 bg-stone-50 p-2.5 rounded-xl border">
                     <span className="font-bold text-xs uppercase">{r.flujo}</span>
@@ -2642,22 +2642,22 @@ export default function EcoConectaPage() {
               </div>
 
               <div className="bg-white p-4 rounded-2xl border-2 border-stone-300 flex flex-col gap-2">
-                <h3 className="font-black text-sm">Publicar Gu\u00eda Educativa</h3>
+                <h3 className="font-black text-sm">Publicar Guía Educativa</h3>
                 <input
                   type="text"
-                  placeholder="T\u00edtulo"
+                  placeholder="Título"
                   className="p-2 border rounded text-sm"
                   value={nuevoTituloEdu}
-                  onFocus={() => hablar("Escribe el t\u00edtulo de la gu\u00eda educativa")}
+                  onFocus={() => hablar("Escribe el título de la guía educativa")}
                   onChange={(e) => setNuevoTituloEdu(e.target.value)}
                 />
                 <select
                   className="p-2 border rounded text-sm"
                   value={nuevoFlujoEdu}
-                  onFocus={() => hablar("Selecciona si la gu\u00eda es para residuos org\u00e1nicos o reciclables")}
+                  onFocus={() => hablar("Selecciona si la guía es para residuos orgánicos o reciclables")}
                   onChange={(e) => setNuevoFlujoEdu(e.target.value)}
                 >
-                  <option value="organico">Org\u00e1nico</option>
+                  <option value="organico">Orgánico</option>
                   <option value="reciclable">Reciclable</option>
                 </select>
                 <textarea
@@ -2665,7 +2665,7 @@ export default function EcoConectaPage() {
                   className="p-2 border rounded text-sm"
                   rows={2}
                   value={nuevoTextoEdu}
-                  onFocus={() => hablar("Escribe el contenido de la gu\u00eda educativa")}
+                  onFocus={() => hablar("Escribe el contenido de la guía educativa")}
                   onChange={(e) => setNuevoTextoEdu(e.target.value)}
                 />
                 <button
@@ -2673,7 +2673,7 @@ export default function EcoConectaPage() {
                   onClick={crearContenidoEducativo}
                   className="bg-sky-700 text-white font-bold py-2 rounded-xl text-xs"
                 >
-                  Publicar Gu\u00eda
+                  Publicar Guía
                 </button>
               </div>
             </section>
