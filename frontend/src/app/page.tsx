@@ -189,36 +189,55 @@ export default function EcoConectaPage() {
   const [nuevoFlujoEdu, setNuevoFlujoEdu] = useState<string>("organico");
   const [nuevoTextoEdu, setNuevoTextoEdu] = useState<string>("");
 
-  const hablar = (texto: string) => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    if (!audioHabilitado) return;
+  const limpiarTextoParaVoz = (texto: string): string => {
     const meses = [
       "enero", "febrero", "marzo", "abril", "mayo", "junio",
       "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
     ];
-    const textoLimpio = texto
-      .replace(/1\uFE0F?\u20E3/g, "opción 1, ")
-      .replace(/2\uFE0F?\u20E3/g, "opción 2, ")
-      .replace(/3\uFE0F?\u20E3/g, "opción 3, ")
-      .replace(/4\uFE0F?\u20E3/g, "opción 4, ")
-      .replace(/[\uD83C-\uDBFF][\uDC00-\uDFFF]|[\u2300-\u27BF]|[\uFE00-\uFE0F\u200D\u20E3]/g, " ")
+    return texto
+      .replace(/([0-9])\uFE0F?\u20E3/g, "$1. ")
+      .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, " ")
       .replace(/\*/g, "")
       .replace(/->/g, ", luego ")
-      .replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (_, y, m, d) => {
-        const mes = meses[parseInt(m, 10) - 1] || m;
-        return `${parseInt(d, 10)} de ${mes} de ${y}`;
+      .replace(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/g, (_, y, m, d) => {
+        const mes = meses[parseInt(m, 10) - 1];
+        return mes ? `${parseInt(d, 10)} de ${mes} de ${y}` : `${d} del ${m} de ${y}`;
       })
       .replace(/\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g, (_, d, m, y) => {
-        const mes = meses[parseInt(m, 10) - 1] || m;
-        return `${parseInt(d, 10)} de ${mes} de ${y}`;
+        const mes = meses[parseInt(m, 10) - 1];
+        return mes ? `${parseInt(d, 10)} de ${mes} de ${y}` : `${d} del ${m} de ${y}`;
       })
       .replace(/\b1\/2\b/g, "1 o 2")
-      .replace(/([A-Za-zÁÉÍÓÚáéíóúÑñ])\s*\/\s*([A-Za-zÁÉÍÓÚáéíóúÑñ])/g, "$1 o $2")
-      .replace(/\+57\s*/g, "más 57 ")
-      .replace(/\b\d{7,12}\b/g, (num) => num.split("").join(" "))
+      .replace(/\b(\d{1,2})[-\/](\d{1,2})\b/g, (_, d, m) => {
+        const dia = parseInt(d, 10);
+        const mesNum = parseInt(m, 10);
+        if (dia >= 1 && dia <= 31 && mesNum >= 1 && mesNum <= 12) {
+          return `${dia} de ${meses[mesNum - 1]}`;
+        }
+        return `${d}, ${m}`;
+      })
+      .replace(/\//g, " o ")
+      .replace(/\b(\d{1,2}):00\s*AM\b/gi, "$1 de la mañana")
+      .replace(/\b(\d{1,2}):00\s*PM\b/gi, "$1 de la tarde")
+      .replace(/\b(\d{1,2}):(\d{2})\b/g, "$1 y $2")
+      .replace(/\bMz\.?\s*(\d+)/gi, "manzana $1")
+      .replace(/\bCs\.?\s*(\d+)/gi, "casa $1")
+      .replace(/\bSec\.?\s*(\d+)/gi, "sector $1")
+      .replace(/\b(?:Cra|Kr)\.?\s*(\d+)/gi, "carrera $1")
+      .replace(/\b(?:Cll|Cl)\.?\s*(\d+)/gi, "calle $1")
+      .replace(/#\s*/g, "número ")
+      .replace(/\b(\d{1,3})\s*-\s*(\d{1,3})\b/g, "$1, $2")
+      .replace(/\+57\s*/g, "más 57, ")
+      .replace(/\b\d{7,12}\b/g, (num) => num.split("").join(", "))
       .replace(/\s+/g, " ")
       .trim();
+  };
+
+  const hablar = (texto: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    if (!audioHabilitado) return;
+    const textoLimpio = limpiarTextoParaVoz(texto);
     if (!textoLimpio) return;
     window.speechSynthesis.resume();
 
@@ -227,11 +246,17 @@ export default function EcoConectaPage() {
       const voces = window.speechSynthesis.getVoices();
       const vozEs =
         voces.find((v) => v.lang.toLowerCase().includes("es-co")) ||
+        voces.find((v) => v.lang.toLowerCase().includes("es-mx")) ||
+        voces.find((v) => v.lang.toLowerCase().includes("es-us")) ||
         voces.find((v) => v.lang.toLowerCase().includes("es-es")) ||
         voces.find((v) => v.lang.toLowerCase().startsWith("es"));
-      if (vozEs) utter.voice = vozEs;
-      utter.lang = "es-CO";
-      utter.rate = 0.95;
+      if (vozEs) {
+        utter.voice = vozEs;
+        utter.lang = vozEs.lang;
+      } else {
+        utter.lang = "es-ES";
+      }
+      utter.rate = 0.93;
       utter.pitch = 1.0;
       window.speechSynthesis.speak(utter);
     };
