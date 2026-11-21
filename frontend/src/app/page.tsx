@@ -196,7 +196,7 @@ export default function EcoConectaPage() {
     ];
     return texto
       .replace(/([0-9])\uFE0F?\u20E3/g, "$1. ")
-      .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, " ")
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0F\u200D\u20E3]/g, " ")
       .replace(/\*/g, "")
       .replace(/->/g, ", luego ")
       .replace(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/g, (_, y, m, d) => {
