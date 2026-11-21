@@ -138,7 +138,7 @@ export default function EcoConectaPage() {
   useEffect(() => {
     if (!usuarioIdActual || !usuarioRolActual) return;
     if (usuarioRolActual === "admin") {
-      // mantenido por seleccion del usuario
+      setFiltroAdminSol("pendientes");
       setSubFiltroCategoria("todo");
       setSubFiltroFlujo("todos");
     }
@@ -147,7 +147,7 @@ export default function EcoConectaPage() {
   useEffect(() => {
     if (!usuarioIdActual || !usuarioRolActual) return;
     if (usuarioRolActual === "admin") {
-      // mantenido por seleccion del usuario
+      setFiltroAdminSol("pendientes");
       setSubFiltroCategoria("todo");
       setSubFiltroFlujo("todos");
     }
@@ -508,7 +508,7 @@ export default function EcoConectaPage() {
   useEffect(() => {
     if (!usuarioIdActual || !usuarioRolActual) return;
     if (usuarioRolActual === "admin") {
-      // mantenido por seleccion del usuario
+      setFiltroAdminSol("pendientes");
       setSubFiltroCategoria("todo");
       setSubFiltroFlujo("todos");
     }
@@ -517,7 +517,7 @@ export default function EcoConectaPage() {
   useEffect(() => {
     if (!usuarioIdActual || !usuarioRolActual) return;
     if (usuarioRolActual === "admin") {
-      // mantenido por seleccion del usuario
+      setFiltroAdminSol("pendientes");
       setSubFiltroCategoria("todo");
       setSubFiltroFlujo("todos");
     }
@@ -2809,7 +2809,7 @@ export default function EcoConectaPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            // mantenido por seleccion del usuario
+                            setFiltroAdminSol("pendientes");
                             hablar(
                               `Pendientes: ${pendientesRecoleccion.length} recolecciones y ${pendientesEquipo.length} perfiles de equipo por aprobar.`
                             );
