@@ -247,30 +247,45 @@ export default function EcoConectaPage() {
       "enero", "febrero", "marzo", "abril", "mayo", "junio",
       "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
     ];
+    const digitosMenu: Record<string, string> = {
+      "0": "cero", "1": "uno", "2": "dos", "3": "tres", "4": "cuatro",
+      "5": "cinco", "6": "seis", "7": "siete", "8": "ocho", "9": "nueve",
+      "①": "uno", "②": "dos", "③": "tres", "④": "cuatro", "⑤": "cinco",
+      "❶": "uno", "❷": "dos", "❸": "tres", "❹": "cuatro", "❺": "cinco",
+    };
+
     return texto
-      // 1. Convertir emojis de numeros del menu (1️⃣, 2️⃣, 3️⃣, 4️⃣...) a palabras claras
-      .replace(/([0-9])\uFE0F?\u20E3/g, (_, d) => `opción ${DICCIONARIO_NUMEROS[parseInt(d, 10)]}, `)
-      // 2. Eliminar todos los demas emojis decorativos (compatible con Vercel/TypeScript)
+      // 1. Convertir emojis de numeros del menu (1️⃣, 2️⃣, 3️⃣, 4️⃣, etc.) a palabras claras
+      .replace(/([0-9])\uFE0F?\u20E3/g, (_, d) => `opción ${digitosMenu[d] || d}, `)
+      .replace(/([①②③④⑤❶❷❸❹❺])/g, (_, d) => `opción ${digitosMenu[d] || d}, `)
+      // 2. Eliminar todos los demas emojis decorativos
       .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0F\u200D\u20E3]/g, " ")
-      // 3. Limpiar asteriscos y flechas
+      // 3. Quitar asteriscos y flechas
       .replace(/\*/g, "")
       .replace(/->/g, ", luego ")
-      // 4. Fechas completas YYYY-MM-DD o YYYY/MM/DD
+      // 4. Corregir expresiones de genero y horarios 24/7 antes de procesar barras
+      .replace(/\bvecino\/a\b/gi, "vecino o vecina")
+      .replace(/\bvecinos\/as\b/gi, "vecinos o vecinas")
+      .replace(/\bhuertero\/a\b/gi, "huertero o huertera")
+      .replace(/\breciclador\/a\b/gi, "reciclador o recicladora")
+      .replace(/\b24\s*\/\s*7\b/gi, "veinticuatro horas, los siete días")
+      .replace(/\b24\s*horas\b/gi, "veinticuatro horas")
+      .replace(/\b1\/2\b/g, "uno o dos")
+      // 5. Fechas completas YYYY-MM-DD o YYYY/MM/DD
       .replace(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/g, (_, y, m, d) => {
         const mes = meses[parseInt(m, 10) - 1];
         const diaTxt = numeroAPalabras(d);
         const anioTxt = numeroAPalabras(y);
         return mes ? `${diaTxt} de ${mes} de ${anioTxt}` : `${diaTxt} del ${numeroAPalabras(m)} de ${anioTxt}`;
       })
-      // 5. Fechas completas DD-MM-YYYY o DD/MM/YYYY
+      // 6. Fechas completas DD-MM-YYYY o DD/MM/YYYY
       .replace(/\b(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})\b/g, (_, d, m, y) => {
         const mes = meses[parseInt(m, 10) - 1];
         const diaTxt = numeroAPalabras(d);
         const anioTxt = numeroAPalabras(y);
         return mes ? `${diaTxt} de ${mes} de ${anioTxt}` : `${diaTxt} del ${numeroAPalabras(m)} de ${anioTxt}`;
       })
-      // 6. Opcion 1/2 y fechas cortas DD/MM o DD-MM
-      .replace(/\b1\/2\b/g, "uno o dos")
+      // 7. Fechas cortas DD/MM o DD-MM
       .replace(/\b(\d{1,2})[-\/](\d{1,2})\b/g, (_, d, m) => {
         const dia = parseInt(d, 10);
         const mesNum = parseInt(m, 10);
@@ -279,29 +294,30 @@ export default function EcoConectaPage() {
         }
         return `${numeroAPalabras(d)}, ${numeroAPalabras(m)}`;
       })
-      // 7. Eliminar barras / restantes
+      // 8. Reemplazar barras / restantes por "o"
       .replace(/\//g, " o ")
-      // 8. Horarios AM / PM
+      // 9. Horarios AM / PM y horas
       .replace(/\b(\d{1,2}):00\s*AM\b/gi, (_, h) => `${numeroAPalabras(h)} de la mañana`)
       .replace(/\b(\d{1,2}):00\s*PM\b/gi, (_, h) => (parseInt(h, 10) === 12 ? "doce del mediodía" : `${numeroAPalabras(h)} de la tarde`))
       .replace(/\b(\d{1,2}):(\d{2})\b/g, (_, h, min) =>
         min === "00" ? numeroAPalabras(h) : `${numeroAPalabras(h)} y ${numeroAPalabras(min)}`
       )
-      // 9. Abreviaturas de direcciones y numeros de casa con guion (ej. 14-20 -> catorce, veinte)
+      .replace(/(\d+)\s*h\b/gi, (_, h) => `${numeroAPalabras(h)} horas`)
+      // 10. Direcciones y casas con guion (ej. 14-20 -> catorce, veinte)
       .replace(/\bMz\.?\s*(\d+)/gi, (_, n) => `manzana ${numeroAPalabras(n)}`)
       .replace(/\bCs\.?\s*(\d+)/gi, (_, n) => `casa ${numeroAPalabras(n)}`)
       .replace(/\bSec\.?\s*(\d+)/gi, (_, n) => `sector ${numeroAPalabras(n)}`)
       .replace(/\b(?:Cra|Kr)\.?\s*(\d+)/gi, (_, n) => `carrera ${numeroAPalabras(n)}`)
       .replace(/\b(?:Cll|Cl)\.?\s*(\d+)/gi, (_, n) => `calle ${numeroAPalabras(n)}`)
       .replace(/#\s*/g, "número ")
-      .replace(/\b(\d{1,4})\s*-\s*(\d{1,4})\b/g, (_, a, b) => `${numeroAPalabras(a)}, ${numeroAPalabras(b)}`)
-      // 10. Telefonos largos digito por digito
+      .replace(/(\d{1,4})\s*-\s*(\d{1,4})/g, (_, a, b) => `${numeroAPalabras(a)}, ${numeroAPalabras(b)}`)
+      // 11. Telefonos largos digito por digito
       .replace(/\+57\s*/g, "más cincuenta y siete, ")
       .replace(/\b\d{7,12}\b/g, (num) =>
         num.split("").map((d) => DICCIONARIO_NUMEROS[parseInt(d, 10)] ?? d).join(", ")
       )
-      // 11. Convertir CUALQUIER numero restante (0 a 3000) a palabra en espanol
-      .replace(/\b\d+\b/g, (num) => numeroAPalabras(num))
+      // 12. Convertir TODOS los numeros restantes (0 a 3000) a palabras en espanol
+      .replace(/(\d+)/g, (num) => numeroAPalabras(num))
       .replace(/\s+/g, " ")
       .trim();
   };
