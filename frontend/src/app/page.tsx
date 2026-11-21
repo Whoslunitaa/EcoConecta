@@ -111,6 +111,7 @@ export default function EcoConectaPage() {
   const [vistaCoord, setVistaCoord] = useState<"bandeja" | "equipo" | "config">("bandeja");
   const [filtroAdminSol, setFiltroAdminSol] = useState<"pendientes" | "todas" | "completadas">("pendientes");
   const [pestanaActiva, setPestanaActiva] = useState<"gestion" | "calendario">("gestion");
+  const [modoCalendario, setModoCalendario] = useState<"dia" | "semana" | "mes">("semana");
   const [fechaCalendarioSel, setFechaCalendarioSel] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [descansosCalendario, setDescansosCalendario] = useState<Array<{ id: string; usuarioId: number; nombre: string; rol: string; fecha: string; hora: string; nota: string }>>([]);
   const [horaDescansoInput, setHoraDescansoInput] = useState<string>("12:30 PM - 1:30 PM");
@@ -2332,7 +2333,7 @@ export default function EcoConectaPage() {
                 columnasDias.some((c) => c.iso === d.fecha)
               );
 
-              const anunciarVisita = (vis: any) => {
+              const anunciarVisita = (vis: (typeof solicitudes)[number]) => {
                 const enc = usuarios.find((u) => Number(u.id) === Number(vis.recolector_id));
                 const encNombre = enc?.nombre || "Sin encargado asignado";
                 const esAsignado = Number(vis.recolector_id) === Number(usuarioActual.id);
