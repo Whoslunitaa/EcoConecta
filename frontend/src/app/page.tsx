@@ -126,19 +126,31 @@ export default function EcoConectaPage() {
     } catch {}
   };
 
+  const usuarioIdActual = usuarioActual?.id ?? null;
+  const usuarioRolActual = usuarioActual?.rol ?? null;
+
   useEffect(() => {
-    if (!usuarioActual) return;
+    if (!usuarioIdActual || !usuarioRolActual) return;
+    if (usuarioRolActual === "admin") {
+      setFiltroAdminSol("pendientes");
+      setSubFiltroCategoria("todo");
+      setSubFiltroFlujo("todos");
+    }
+  }, [usuarioIdActual, usuarioRolActual]);
+
+  useEffect(() => {
+    if (!usuarioIdActual || !usuarioRolActual) return;
 
     const sincronizar = async () => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       try {
         const api = getApiUrl();
-        const headers: Record<string, string> = { "rol-actor": usuarioActual.rol };
-        if (usuarioActual.rol === "huertero" || usuarioActual.rol === "reciclador") {
-          headers["usuario-id"] = String(usuarioActual.id);
-        } else if (usuarioActual.rol === "coord_huerteros") {
+        const headers: Record<string, string> = { "rol-actor": usuarioRolActual };
+        if (usuarioRolActual === "huertero" || usuarioRolActual === "reciclador") {
+          headers["usuario-id"] = String(usuarioIdActual);
+        } else if (usuarioRolActual === "coord_huerteros") {
           headers["flujo-filtro"] = "organico";
-        } else if (usuarioActual.rol === "coord_recicladores") {
+        } else if (usuarioRolActual === "coord_recicladores") {
           headers["flujo-filtro"] = "reciclable";
         }
         const res = await fetch(`${api}/solicitudes`, { headers, cache: "no-store" });
@@ -149,12 +161,9 @@ export default function EcoConectaPage() {
       } catch {}
     };
 
-    if (usuarioActual.rol === "admin") {
-      setFiltroAdminSol("pendientes");
-    }
     sincronizar();
 
-    const intervalo = setInterval(sincronizar, 5000);
+    const intervalo = setInterval(sincronizar, 6000);
     const onVisible = () => {
       if (document.visibilityState === "visible") sincronizar();
     };
@@ -164,7 +173,7 @@ export default function EcoConectaPage() {
       clearInterval(intervalo);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [usuarioActual]);
+  }, [usuarioIdActual, usuarioRolActual]);
 
   const [loginUser, setLoginUser] = useState<string>("");
   const [loginPass, setLoginPass] = useState<string>("");
@@ -507,13 +516,54 @@ export default function EcoConectaPage() {
     cargarDatosPublicos();
   }, []);
 
+  const usuarioIdActual = usuarioActual?.id ?? null;
+  const usuarioRolActual = usuarioActual?.rol ?? null;
+
   useEffect(() => {
-    if (!usuarioActual) return;
-    const timer = setInterval(() => {
-      cargarDatosPrivados(usuarioActual, false);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [usuarioActual]);
+    if (!usuarioIdActual || !usuarioRolActual) return;
+    if (usuarioRolActual === "admin") {
+      setFiltroAdminSol("pendientes");
+      setSubFiltroCategoria("todo");
+      setSubFiltroFlujo("todos");
+    }
+  }, [usuarioIdActual, usuarioRolActual]);
+
+  useEffect(() => {
+    if (!usuarioIdActual || !usuarioRolActual) return;
+
+    const sincronizar = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      try {
+        const api = getApiUrl();
+        const headers: Record<string, string> = { "rol-actor": usuarioRolActual };
+        if (usuarioRolActual === "huertero" || usuarioRolActual === "reciclador") {
+          headers["usuario-id"] = String(usuarioIdActual);
+        } else if (usuarioRolActual === "coord_huerteros") {
+          headers["flujo-filtro"] = "organico";
+        } else if (usuarioRolActual === "coord_recicladores") {
+          headers["flujo-filtro"] = "reciclable";
+        }
+        const res = await fetch(`${api}/solicitudes`, { headers, cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setSolicitudes(data);
+        }
+      } catch {}
+    };
+
+    sincronizar();
+
+    const intervalo = setInterval(sincronizar, 6000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sincronizar();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [usuarioIdActual, usuarioRolActual]);
 
   const guardarNumeroWhatsAppOficial = async (limpiar = false) => {
     if (!usuarioActual) return;
