@@ -110,6 +110,8 @@ export default function EcoConectaPage() {
   const [vistaPublica, setVistaPublica] = useState<"pedir" | "aprender" | "whatsapp" | "registro" | "login">("pedir");
   const [vistaCoord, setVistaCoord] = useState<"bandeja" | "equipo" | "config">("bandeja");
   const [filtroAdminSol, setFiltroAdminSol] = useState<"pendientes" | "todas" | "completadas">("pendientes");
+  const [subFiltroCategoria, setSubFiltroCategoria] = useState<"todo" | "recoleccion" | "equipo">("todo");
+  const [subFiltroFlujo, setSubFiltroFlujo] = useState<"todos" | "huertero" | "reciclador">("todos");
 
   const refrescarSolicitudesAdmin = async () => {
     try {
@@ -125,10 +127,43 @@ export default function EcoConectaPage() {
   };
 
   useEffect(() => {
-    if (usuarioActual?.rol === "admin") {
+    if (!usuarioActual) return;
+
+    const sincronizar = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      try {
+        const api = getApiUrl();
+        const headers: Record<string, string> = { "rol-actor": usuarioActual.rol };
+        if (usuarioActual.rol === "huertero" || usuarioActual.rol === "reciclador") {
+          headers["usuario-id"] = String(usuarioActual.id);
+        } else if (usuarioActual.rol === "coord_huerteros") {
+          headers["flujo-filtro"] = "organico";
+        } else if (usuarioActual.rol === "coord_recicladores") {
+          headers["flujo-filtro"] = "reciclable";
+        }
+        const res = await fetch(`${api}/solicitudes`, { headers, cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) setSolicitudes(data);
+        }
+      } catch {}
+    };
+
+    if (usuarioActual.rol === "admin") {
       setFiltroAdminSol("pendientes");
-      refrescarSolicitudesAdmin();
     }
+    sincronizar();
+
+    const intervalo = setInterval(sincronizar, 5000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sincronizar();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      clearInterval(intervalo);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [usuarioActual]);
 
   const [loginUser, setLoginUser] = useState<string>("");
@@ -2153,314 +2188,380 @@ export default function EcoConectaPage() {
 
           return (
             <section className="flex flex-col gap-5">
-              {/* BLOQUE SUPERIOR: SOLICITUDES CON MINI PESTANAS EN LA ESQUINA */}
-              <div className="bg-white p-4 rounded-2xl border-2 border-amber-500 flex flex-col gap-3">
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 pb-3">
-                  <div>
-                    <h2 className="font-black text-base text-stone-900">
-                      📋 Solicitudes ({solicitudesAdminVisibles.length})
-                    </h2>
-                    <p className="text-xs text-stone-600">
-                      {filtroAdminSol === "pendientes"
-                        ? "Mostrando solicitudes pendientes por gestionar."
-                        : filtroAdminSol === "completadas"
-                        ? "Mostrando recolecciones ya completadas."
-                        : "Mostrando el historial completo de solicitudes."}
-                    </p>
-                  </div>
+              {/* BLOQUE SUPERIOR: FILTROS JERARQUICOS (PENDIENTES / COMPLETADAS / TODAS + RECOLECCION / EQUIPO + HUERTEROS / RECICLADORES) */}
+              {(() => {
+                const pendientesRecoleccion = solicitudes.filter(
+                  (s) => s.estado !== "recolectada" && s.estado !== "cancelada"
+                );
+                const completadasRecoleccion = solicitudes.filter((s) => s.estado === "recolectada");
 
-                  {/* Mini pestanas en la esquina superior derecha */}
-                  <div className="flex flex-wrap items-center justify-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFiltroAdminSol("todas");
-                        hablar(`Pestaña todas las solicitudes, ${solicitudes.length} en total.`);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
-                        filtroAdminSol === "todas"
-                          ? "bg-stone-900 text-white border-stone-950"
-                          : "bg-stone-100 text-stone-800 border-stone-300 hover:bg-stone-200"
-                      }`}
-                    >
-                      Todas ({solicitudes.length})
-                    </button>
+                const pendientesEquipo = usuarios.filter((u) => !u.aprobado);
+                const aprobadosEquipo = usuarios.filter((u) => u.aprobado);
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFiltroAdminSol("pendientes");
-                        hablar(`Pestaña pendientes, ${solPendientes.length} solicitudes por atender.`);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
-                        filtroAdminSol === "pendientes"
-                          ? "bg-amber-600 text-white border-amber-900"
-                          : "bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100"
-                      }`}
-                    >
-                      Pendientes ({solPendientes.length})
-                    </button>
+                const recoleccionPorEstado =
+                  filtroAdminSol === "pendientes"
+                    ? pendientesRecoleccion
+                    : filtroAdminSol === "completadas"
+                    ? completadasRecoleccion
+                    : solicitudes;
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFiltroAdminSol("completadas");
-                        hablar(`Pestaña completadas, ${solCompletadas.length} recolecciones cerradas.`);
-                      }}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-black border transition ${
-                        filtroAdminSol === "completadas"
-                          ? "bg-emerald-700 text-white border-emerald-950"
-                          : "bg-emerald-50 text-emerald-950 border-emerald-300 hover:bg-emerald-100"
-                      }`}
-                    >
-                      Completadas ({solCompletadas.length})
-                    </button>
+                const equipoPorEstado =
+                  filtroAdminSol === "pendientes"
+                    ? pendientesEquipo
+                    : filtroAdminSol === "completadas"
+                    ? aprobadosEquipo
+                    : usuarios;
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (usuarioActual) {
-                          cargarDatosPrivados(usuarioActual, false);
-                          refrescarSolicitudesAdmin();
-                          hablar("Actualizando solicitudes y equipo operativo.");
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-sky-50 text-sky-950 border-sky-300 hover:bg-sky-100"
-                    >
-                      🔄 Actualizar
-                    </button>
-                  </div>
-                </div>
+                const recoleccionFiltrada = recoleccionPorEstado.filter((s) => {
+                  if (subFiltroCategoria === "equipo") return false;
+                  if (subFiltroFlujo === "huertero") return s.flujo === "organico";
+                  if (subFiltroFlujo === "reciclador") return s.flujo === "reciclable";
+                  return true;
+                });
 
-                {solicitudesAdminVisibles.length === 0 && (
-                  <p className="bg-stone-50 p-4 rounded-xl border text-xs font-bold text-stone-600 text-center">
-                    No hay solicitudes en la vista "{filtroAdminSol}".
-                  </p>
-                )}
+                const equipoFiltrado = equipoPorEstado.filter((u) => {
+                  if (subFiltroCategoria === "recoleccion") return false;
+                  if (subFiltroFlujo === "huertero") return u.rol === "huertero" || u.rol === "coord_huerteros";
+                  if (subFiltroFlujo === "reciclador") return u.rol === "reciclador" || u.rol === "coord_recicladores";
+                  return true;
+                });
 
-                <div className="flex flex-col gap-3">
-                  {solicitudesAdminVisibles.map((s) => {
-                    const rolNecesario = s.flujo === "organico" ? "huertero" : "reciclador";
-                    const equipoAprobado = usuarios.filter(
-                      (u) => u.rol === rolNecesario && u.aprobado
-                    );
+                const totalPendientesGeneral = pendientesRecoleccion.length + pendientesEquipo.length;
+                const totalCompletadasGeneral = completadasRecoleccion.length + aprobadosEquipo.length;
+                const totalTodasGeneral = solicitudes.length + usuarios.length;
 
-                    return (
-                      <div
-                        key={s.id}
-                        className="bg-stone-50 p-3.5 rounded-2xl border-2 border-stone-300 flex flex-col gap-2.5"
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span
-                                className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
-                                  s.estado === "recolectada"
-                                    ? "bg-emerald-100 text-emerald-950"
-                                    : "bg-amber-100 text-amber-950"
-                                }`}
-                              >
-                                {s.codigo} • {s.estado}
-                              </span>
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white border border-stone-300 text-stone-800">
-                                {s.flujo === "organico" ? "🌱 Orgánicos" : "♻️ Reciclables"}
-                              </span>
-                              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-950 border border-green-400">
-                                {etiquetaCanalAdmin[s.canal_origen || "web"] || s.canal_origen}
-                              </span>
-                            </div>
+                return (
+                  <div className="bg-white p-4 rounded-2xl border-2 border-amber-500 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 pb-3">
+                      <div>
+                        <h2 className="font-black text-base text-stone-900">
+                          📋 Gestión Filtrada ({recoleccionFiltrada.length + equipoFiltrado.length})
+                        </h2>
+                        <p className="text-xs text-stone-600">
+                          Estado: <strong>{filtroAdminSol}</strong> • Categoría: <strong>{subFiltroCategoria}</strong> • Flujo: <strong>{subFiltroFlujo}</strong>
+                        </p>
+                      </div>
 
-                            <p className="font-extrabold text-base mt-1">{s.solicitante_nombre}</p>
-                            <p className="text-xs font-bold text-stone-800">📍 {s.solicitante_direccion}</p>
-                            <p className="text-xs text-green-800 font-bold">📱 WhatsApp: +{s.solicitante_telefono}</p>
-                            <p className="text-xs text-stone-600">⏰ {s.disponibilidad_horaria}</p>
-                            {s.fecha_programada && (
-                              <p className="text-xs font-extrabold text-emerald-900 mt-0.5">
-                                📅 Programada: {s.fecha_programada} {s.hora_programada ? `• ${s.hora_programada}` : ""}
-                              </p>
-                            )}
-                            {s.descripcion && (
-                              <p className="text-xs text-stone-800 bg-white p-2 rounded-lg border mt-1">
-                                📝 <strong>Detalle:</strong> {s.descripcion}
-                              </p>
-                            )}
-                          </div>
-
-                          <div className="flex flex-col gap-1">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                hablar(
-                                  `Solicitud ${s.codigo}, estado ${s.estado}, tipo ${
-                                    s.flujo === "organico" ? "residuos orgánicos" : "residuos reciclables"
-                                  }. Vecino ${s.solicitante_nombre}, dirección ${s.solicitante_direccion}, horario ${
-                                    s.disponibilidad_horaria
-                                  }.${s.descripcion ? ` Detalle: ${s.descripcion}` : ""}`
-                                )
-                              }
-                              className="px-2.5 py-1.5 bg-amber-100 text-amber-950 rounded-lg text-xs font-bold"
-                            >
-                              🔊 Escuchar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                hablar("Editar solicitud");
-                                setEditandoSolId(editandoSolId === s.id ? null : s.id);
-                                setEditSolNombre(s.solicitante_nombre);
-                                setEditSolDir(s.solicitante_direccion);
-                                setEditSolTel(s.solicitante_telefono);
-                                setEditSolHorario(s.disponibilidad_horaria);
-                                setEditSolEstado(s.estado);
-                              }}
-                              className="px-2.5 py-1.5 bg-sky-100 text-sky-900 rounded-lg text-xs font-bold"
-                            >
-                              ✏️ Editar
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => eliminarSolicitud(s.id)}
-                              className="px-2.5 py-1.5 bg-red-100 text-red-900 rounded-lg text-xs font-bold"
-                            >
-                              🗑️ Eliminar
-                            </button>
-                          </div>
-                        </div>
-
-                        {editandoSolId === s.id && (
-                          <div className="bg-sky-50 p-3 rounded-xl border border-sky-300 flex flex-col gap-2">
-                            <input
-                              type="text"
-                              value={editSolNombre}
-                              onFocus={() => hablar("Editar nombre del solicitante")}
-                              onChange={(e) => setEditSolNombre(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="Nombre solicitante"
-                            />
-                            <input
-                              type="text"
-                              value={editSolDir}
-                              onFocus={() => hablar("Editar dirección de recolección")}
-                              onChange={(e) => setEditSolDir(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="Dirección"
-                            />
-                            <input
-                              type="text"
-                              value={editSolTel}
-                              onFocus={() => hablar("Editar número de WhatsApp")}
-                              onChange={(e) => setEditSolTel(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white"
-                              placeholder="WhatsApp"
-                            />
-                            <select
-                              value={editSolEstado}
-                              onFocus={() => hablar("Cambiar estado de la solicitud")}
-                              onChange={(e) => setEditSolEstado(e.target.value)}
-                              className="p-2 border rounded-lg text-xs bg-white font-bold"
-                            >
-                              <option value="recibida">recibida</option>
-                              <option value="en_revision">en_revision</option>
-                              <option value="programada">programada</option>
-                              <option value="recolectada">recolectada</option>
-                              <option value="cancelada">cancelada</option>
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                guardarEdicionSolicitud(s.id);
-                                setTimeout(refrescarSolicitudesAdmin, 400);
-                              }}
-                              className="bg-sky-700 text-white font-bold py-2 rounded-lg text-xs"
-                            >
-                              Guardar Cambios
-                            </button>
-                          </div>
-                        )}
-
-                        {s.estado !== "recolectada" && s.estado !== "cancelada" && (
-                          <div className="bg-white p-3 rounded-xl border flex flex-col gap-2">
-                            <select
-                              className="p-2 rounded-lg border bg-white text-xs font-bold"
-                              value={recolectorSel[s.id] || s.recolector_id || ""}
-                              onFocus={() => hablar(`Selecciona el ${rolNecesario} aprobado para asignar esta solicitud`)}
-                              onChange={(e) =>
-                                setRecolectorSel({ ...recolectorSel, [s.id]: Number(e.target.value) })
-                              }
-                            >
-                              <option value="">1. Asignar {rolNecesario} aprobado...</option>
-                              {equipoAprobado.map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.nombre} ({r.vehiculo_herramienta || "Sin vehículo"})
-                                </option>
-                              ))}
-                            </select>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <input
-                                type="date"
-                                className="p-2 rounded-lg border bg-white text-xs"
-                                value={fechaSel[s.id] || s.fecha_programada || ""}
-                                onFocus={() => hablar("Selecciona la fecha de recolección")}
-                                onChange={(e) => setFechaSel({ ...fechaSel, [s.id]: e.target.value })}
-                              />
-                              <input
-                                type="text"
-                                placeholder="Hora asignada (ej. 9:00 AM)"
-                                className="p-2 rounded-lg border bg-white text-xs"
-                                value={horaSel[s.id] || s.hora_programada || ""}
-                                onFocus={() => hablar("Escribe la hora asignada para la recolección")}
-                                onChange={(e) => setHoraSel({ ...horaSel, [s.id]: e.target.value })}
-                              />
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  programarSolicitud(s.id);
-                                  setTimeout(refrescarSolicitudesAdmin, 400);
-                                }}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
-                              >
-                                📅 Programar y WhatsApp
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  cerrarRecoleccion(s.id);
-                                  setTimeout(refrescarSolicitudesAdmin, 400);
-                                }}
-                                className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
-                              >
-                                ✅ Marcar Completada
-                              </button>
-                            </div>
-                          </div>
-                        )}
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroAdminSol("todas");
+                            hablar(`Pestaña todas, ${totalTodasGeneral} registros.`);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
+                            filtroAdminSol === "todas"
+                              ? "bg-stone-900 text-white border-stone-950"
+                              : "bg-stone-100 text-stone-800 border-stone-300"
+                          }`}
+                        >
+                          Todas ({totalTodasGeneral})
+                        </button>
 
                         <button
                           type="button"
-                          onClick={() => verHistorial(s.id)}
-                          className="text-xs font-bold text-sky-800 underline text-left"
+                          onClick={() => {
+                            setFiltroAdminSol("pendientes");
+                            hablar(
+                              `Pendientes: ${pendientesRecoleccion.length} recolecciones y ${pendientesEquipo.length} perfiles de equipo por aprobar.`
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
+                            filtroAdminSol === "pendientes"
+                              ? "bg-amber-600 text-white border-amber-900"
+                              : "bg-amber-50 text-amber-950 border-amber-300"
+                          }`}
                         >
-                          {historialAbierto[s.id] ? "Ocultar trazabilidad" : "Ver trazabilidad"}
+                          Pendientes ({totalPendientesGeneral})
                         </button>
 
-                        {historialAbierto[s.id] && (
-                          <ul className="bg-white p-2.5 rounded-xl border text-xs flex flex-col gap-1">
-                            {historialAbierto[s.id].map((h) => (
-                              <li key={h.id}>
-                                <strong>{h.estado_nuevo.toUpperCase()}</strong> ({h.actor_nombre}): {h.observacion}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiltroAdminSol("completadas");
+                            hablar(
+                              `Completadas: ${completadasRecoleccion.length} recolecciones cerradas y ${aprobadosEquipo.length} integrantes aprobados.`
+                            );
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-black border ${
+                            filtroAdminSol === "completadas"
+                              ? "bg-emerald-700 text-white border-emerald-950"
+                              : "bg-emerald-50 text-emerald-950 border-emerald-300"
+                          }`}
+                        >
+                          Completadas ({totalCompletadasGeneral})
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (usuarioActual) {
+                              cargarDatosPrivados(usuarioActual, false);
+                              refrescarSolicitudesAdmin();
+                              hablar("Actualizando solicitudes y equipo operativo.");
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-black border bg-sky-50 text-sky-950 border-sky-300"
+                        >
+                          🔄 Actualizar
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+
+                    {/* Subfiltro 1: Recolección vs Equipo Operativo */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          { id: "todo", label: "Todo" },
+                          { id: "recoleccion", label: "🚛 Recolección" },
+                          { id: "equipo", label: "👷 Equipo Operativo" },
+                        ] as const
+                      ).map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => {
+                            setSubFiltroCategoria(cat.id);
+                            hablar(`Filtro de categoría: ${cat.label}`);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border ${
+                            subFiltroCategoria === cat.id
+                              ? "bg-emerald-700 text-white border-emerald-950"
+                              : "bg-stone-50 text-stone-700 border-stone-300"
+                          }`}
+                        >
+                          {cat.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Subfiltro 2: Huerteros (Orgánicos) vs Recicladores (Reciclables) */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {(
+                        [
+                          { id: "todos", label: "Todos los flujos" },
+                          { id: "huertero", label: "🌱 Huerteros (Orgánicos)" },
+                          { id: "reciclador", label: "♻️ Recicladores (Reciclables)" },
+                        ] as const
+                      ).map((fl) => (
+                        <button
+                          key={fl.id}
+                          type="button"
+                          onClick={() => {
+                            setSubFiltroFlujo(fl.id);
+                            hablar(`Subfiltro: ${fl.label}`);
+                          }}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold border ${
+                            subFiltroFlujo === fl.id
+                              ? "bg-sky-700 text-white border-sky-950"
+                              : "bg-stone-50 text-stone-700 border-stone-300"
+                          }`}
+                        >
+                          {fl.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Equipo operativo correspondiente al estado y subfiltros */}
+                    {equipoFiltrado.length > 0 && (
+                      <div className="flex flex-col gap-2 pt-1">
+                        <p className="text-xs font-black text-stone-800">
+                          👷 Equipo Operativo en "{filtroAdminSol}" ({equipoFiltrado.length})
+                        </p>
+                        {equipoFiltrado.map((u) => (
+                          <div
+                            key={u.id}
+                            className="bg-amber-50/60 p-3 rounded-xl border border-amber-300 flex justify-between items-start gap-2"
+                          >
+                            <div>
+                              <span className="text-[11px] font-black bg-stone-200 px-2 py-0.5 rounded uppercase mr-1.5">
+                                {u.rol}
+                              </span>
+                              <span
+                                className={`text-[11px] font-black px-2 py-0.5 rounded ${
+                                  u.aprobado ? "bg-emerald-100 text-emerald-900" : "bg-amber-200 text-amber-950"
+                                }`}
+                              >
+                                {u.aprobado ? "✅ Aprobado" : "⏳ Pendiente por aprobar"}
+                              </span>
+                              <p className="font-black text-sm mt-1">{u.nombre}</p>
+                              <p className="text-xs text-stone-700">
+                                📱 +{u.telefono} • 📍 {u.direccion}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  hablar(
+                                    `${u.nombre}, rol ${u.rol}, ${
+                                      u.aprobado ? "aprobado" : "pendiente de aprobación"
+                                    }, dirección ${u.direccion}.`
+                                  )
+                                }
+                                className="bg-amber-100 text-amber-950 font-bold text-xs px-2.5 py-1 rounded-lg"
+                              >
+                                🔊 Escuchar
+                              </button>
+                              {!u.aprobado && (
+                                <button
+                                  type="button"
+                                  onClick={() => aprobarOEditarUsuario(u, true)}
+                                  className="bg-emerald-600 text-white font-bold text-xs px-2.5 py-1 rounded-lg"
+                                >
+                                  ✅ Aprobar
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Solicitudes de recolección correspondientes al estado y subfiltros */}
+                    {recoleccionFiltrada.length > 0 && (
+                      <div className="flex flex-col gap-2.5 pt-1">
+                        <p className="text-xs font-black text-stone-800">
+                          🚛 Solicitudes de Recolección en "{filtroAdminSol}" ({recoleccionFiltrada.length})
+                        </p>
+                        {recoleccionFiltrada.map((s) => {
+                          const rolNecesario = s.flujo === "organico" ? "huertero" : "reciclador";
+                          const equipoAprobado = usuarios.filter(
+                            (u) => u.rol === rolNecesario && u.aprobado
+                          );
+                          return (
+                            <div
+                              key={s.id}
+                              className="bg-stone-50 p-3.5 rounded-2xl border-2 border-stone-300 flex flex-col gap-2"
+                            >
+                              <div className="flex justify-between items-start gap-2">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span
+                                      className={`text-[11px] font-black px-2.5 py-0.5 rounded-full ${
+                                        s.estado === "recolectada"
+                                          ? "bg-emerald-100 text-emerald-950"
+                                          : "bg-amber-100 text-amber-950"
+                                      }`}
+                                    >
+                                      {s.codigo} • {s.estado}
+                                    </span>
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white border border-stone-300 text-stone-800">
+                                      {s.flujo === "organico" ? "🌱 Huerteros (Orgánicos)" : "♻️ Recicladores (Reciclables)"}
+                                    </span>
+                                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-green-100 text-green-950 border border-green-400">
+                                      {etiquetaCanalAdmin[s.canal_origen || "web"] || s.canal_origen}
+                                    </span>
+                                  </div>
+                                  <p className="font-extrabold text-base mt-1">{s.solicitante_nombre}</p>
+                                  <p className="text-xs font-bold text-stone-800">📍 {s.solicitante_direccion}</p>
+                                  <p className="text-xs text-green-800 font-bold">📱 WhatsApp: +{s.solicitante_telefono}</p>
+                                  <p className="text-xs text-stone-600">⏰ {s.disponibilidad_horaria}</p>
+                                  {s.descripcion && (
+                                    <p className="text-xs text-stone-800 bg-white p-2 rounded-lg border mt-1">
+                                      📝 <strong>Detalle:</strong> {s.descripcion}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      hablar(
+                                        `Solicitud ${s.codigo}, ${
+                                          s.flujo === "organico" ? "de huerteros, residuos orgánicos" : "de recicladores, residuos reciclables"
+                                        }, estado ${s.estado}. ${s.solicitante_nombre}, dirección ${s.solicitante_direccion}.`
+                                      )
+                                    }
+                                    className="px-2.5 py-1.5 bg-amber-100 text-amber-950 rounded-lg text-xs font-bold"
+                                  >
+                                    🔊 Escuchar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => eliminarSolicitud(s.id)}
+                                    className="px-2.5 py-1.5 bg-red-100 text-red-900 rounded-lg text-xs font-bold"
+                                  >
+                                    🗑️ Eliminar
+                                  </button>
+                                </div>
+                              </div>
+
+                              {s.estado !== "recolectada" && s.estado !== "cancelada" && (
+                                <div className="bg-white p-3 rounded-xl border flex flex-col gap-2">
+                                  <select
+                                    className="p-2 rounded-lg border bg-white text-xs font-bold"
+                                    value={recolectorSel[s.id] || s.recolector_id || ""}
+                                    onFocus={() => hablar(`Selecciona el ${rolNecesario} aprobado`)}
+                                    onChange={(e) =>
+                                      setRecolectorSel({ ...recolectorSel, [s.id]: Number(e.target.value) })
+                                    }
+                                  >
+                                    <option value="">1. Asignar {rolNecesario} aprobado...</option>
+                                    {equipoAprobado.map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        {r.nombre} ({r.vehiculo_herramienta || "Sin vehículo"})
+                                      </option>
+                                    ))}
+                                  </select>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <input
+                                      type="date"
+                                      className="p-2 rounded-lg border bg-white text-xs"
+                                      value={fechaSel[s.id] || s.fecha_programada || ""}
+                                      onFocus={() => hablar("Selecciona la fecha")}
+                                      onChange={(e) => setFechaSel({ ...fechaSel, [s.id]: e.target.value })}
+                                    />
+                                    <input
+                                      type="text"
+                                      placeholder="Hora asignada"
+                                      className="p-2 rounded-lg border bg-white text-xs"
+                                      value={horaSel[s.id] || s.hora_programada || ""}
+                                      onFocus={() => hablar("Escribe la hora asignada")}
+                                      onChange={(e) => setHoraSel({ ...horaSel, [s.id]: e.target.value })}
+                                    />
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        programarSolicitud(s.id);
+                                        setTimeout(refrescarSolicitudesAdmin, 400);
+                                      }}
+                                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
+                                    >
+                                      📅 Programar y WhatsApp
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        cerrarRecoleccion(s.id);
+                                        setTimeout(refrescarSolicitudesAdmin, 400);
+                                      }}
+                                      className="bg-teal-700 hover:bg-teal-800 text-white font-extrabold py-2 px-2 rounded-xl text-xs"
+                                    >
+                                      ✅ Marcar Completada
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {recoleccionFiltrada.length === 0 && equipoFiltrado.length === 0 && (
+                      <p className="bg-stone-50 p-4 rounded-xl border text-xs font-bold text-stone-600 text-center">
+                        No hay registros en "{filtroAdminSol}" con los filtros seleccionados.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* SECCION INFERIOR 1: EQUIPO OPERATIVO */}
               <div className="bg-white p-4 rounded-2xl border-2 border-stone-400 flex flex-col gap-3">
