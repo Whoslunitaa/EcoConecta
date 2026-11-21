@@ -262,7 +262,7 @@ export default function EcoConectaPage() {
       // 2. Eliminar todos los demas emojis decorativos
       .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0E\uFE0F\u200D\u20E3\uFFFD]/g, " ")
       // 3. Quitar asteriscos y flechas
-      .replace(/\*/g, "")
+      .replace(/[\*\u2022\u00B7]/g, " ")
       .replace(/->/g, ", luego ")
       // 4. Corregir expresiones de genero y 24/7 antes de procesar barras
       .replace(/\bvecino\/a\b/gi, "vecino o vecina")
@@ -721,7 +721,7 @@ export default function EcoConectaPage() {
     if (res.ok) {
       const data = await res.json();
       setChatHistorial([...nuevoHist, { emisor: "bot", texto: data.respuesta }]);
-      hablar(data.respuesta.replace(/[*🌱♻️🥬📦📍⏰✅1️⃣2️⃣3️⃣•👤]/g, ""));
+      hablar(data.respuesta);
       if (data.solicitud_creada) {
         const msg = `Solicitud ${data.solicitud_creada.codigo} creada y enviada a la bandeja del Coordinador.`;
         setMensajeSistema(msg);
@@ -1163,7 +1163,7 @@ export default function EcoConectaPage() {
           {chatHistorial.map((m, i) => (
             <div
               key={i}
-              onClick={() => hablar(m.texto.replace(/[*🌱♻️🥬📦📍⏰✅1️⃣2️⃣3️⃣•👤]/g, ""))}
+              onClick={() => hablar(m.texto)}
               className={`cursor-pointer p-2.5 rounded-2xl text-xs whitespace-pre-line max-w-[85%] shadow-sm ${
                 m.emisor === "usuario" ? "bg-[#d9fdd3] self-end" : "bg-white self-start"
               }`}
