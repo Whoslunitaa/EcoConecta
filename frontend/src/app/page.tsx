@@ -207,6 +207,7 @@ export default function EcoConectaPage() {
   const [audioVecinoDir, setAudioVecinoDir] = useState<string>("");
   const [audioCanalMedio, setAudioCanalMedio] = useState<string>("whatsapp_audio");
   const [audioResumenEscuchado, setAudioResumenEscuchado] = useState<string>("");
+  const [audioFechaPreferida, setAudioFechaPreferida] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [audioHorario, setAudioHorario] = useState<string>("Mañana (8:00 AM - 12:00 PM)");
 
   const [recolectorSel, setRecolectorSel] = useState<Record<number, number>>({});
@@ -747,7 +748,8 @@ export default function EcoConectaPage() {
         flujo: flujoAsignado,
         direccion_manual: audioVecinoDir.trim(),
         telefono_manual: audioVecinoTel.trim(),
-        descripcion: audioResumenEscuchado.trim(),
+        descripcion: `${audioResumenEscuchado.trim()}${audioFechaPreferida ? ` | Fecha solicitada: ${audioFechaPreferida}` : ""}`,
+        fecha_preferida: audioFechaPreferida,
         ubicacion_gps: "",
         disponibilidad_horaria: audioHorario,
         canal_origen: audioCanalMedio,
@@ -807,7 +809,12 @@ export default function EcoConectaPage() {
     const recId = recolectorSel[solId] || solActual?.recolector_id;
     const fecha = fechaSel[solId] || solActual?.fecha_programada || new Date().toISOString().slice(0, 10);
     const hora = (horaSel[solId] || solActual?.hora_programada || solActual?.disponibilidad_horaria || "").trim();
-    const normH = (v: string) => v.trim().toLowerCase().replace(/\s+/g, "");
+    const normH = (v: string) => {
+      const limpio = v.trim().toUpperCase().replace(/\s+/g, "");
+      const m = limpio.match(/^0?(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+      if (!m) return limpio;
+      return `${m[1]}:${m[2] || "00"}${m[3] || ""}`;
+    };
     const conflictoHorario = solicitudes.find(
       (s) =>
         s.id !== solId &&
@@ -817,6 +824,19 @@ export default function EcoConectaPage() {
         normH(String(s.hora_programada || "")) === normH(String(hora)) &&
         normH(String(hora)) !== ""
     );
+    const conflictoDescanso = descansosCalendario.find(
+      (d) =>
+        Number(d.usuarioId) === Number(recId) &&
+        String(d.fecha || "").trim() === String(fecha).trim() &&
+        normH(String(d.hora || "")) === normH(String(hora)) &&
+        normH(String(hora)) !== ""
+    );
+    if (conflictoDescanso) {
+      const avisoDesc = `No es posible agendar a ${conflictoDescanso.nombre} el ${fecha} a las ${hora} porque tiene un descanso registrado en esa hora.`;
+      setMensajeSistema(avisoDesc);
+      hablar(avisoDesc);
+      return;
+    }
     if (conflictoHorario) {
       const empNombre = usuarios.find((u) => Number(u.id) === Number(recId))?.nombre || "este encargado";
       const aviso = `No es posible agendar a ${empNombre} el ${fecha} a las ${hora}; ya tiene una visita asignada en ese mismo día y hora. Puedes agendar a otro integrante o elegir otra hora.`;
@@ -1340,6 +1360,182 @@ export default function EcoConectaPage() {
     </div>
   );
 
+  const renderDisponibilidadDiaCoord = (s: (typeof solicitudes)[number]) => {
+    const fechaObj = (fechaSel[s.id] || s.fecha_programada || new Date().toISOString().slice(0, 10)).trim();
+    const empIdObj = Number(recolectorSel[s.id] || s.recolector_id || 0);
+    const empObj = usuarios.find((u) => Number(u.id) === empIdObj);
+    const empNombre = empObj?.nombre || "Sin encargado seleccionado";
+
+    const normHora = (v: string) => {
+      const limpio = (v || "").trim().toUpperCase().replace(/\s+/g, "");
+      const m = limpio.match(/^0?(\d{1,2})(?::(\d{2}))?(AM|PM)?$/);
+      if (!m) return limpio;
+      return `${m[1]}:${m[2] || "00"}${m[3] || ""}`;
+    };
+
+    const programadasDia = solicitudes.filter((item) => {
+      if (item.id === s.id || item.estado === "cancelada") return false;
+      if (String(item.fecha_programada || "").trim() !== fechaObj) return false;
+      if (usuarioActual?.rol === "coord_huerteros" && item.flujo !== "organico") return false;
+      if (usuarioActual?.rol === "coord_recicladores" && item.flujo !== "reciclable") return false;
+      return true;
+    });
+
+    const descansosDia = descansosCalendario.filter((d) => String(d.fecha || "").trim() === fechaObj);
+
+    const franjas = [
+      "7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM",
+      "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
+    ];
+
+    const horasLibresEmp = franjas.filter((fr) => {
+      if (!empIdObj) return true;
+      const ocupVis = programadasDia.some(
+        (v) => Number(v.recolector_id) === empIdObj && normHora(String(v.hora_programada || "")) === normHora(fr)
+      );
+      const ocupDesc = descansosDia.some(
+        (d) => Number(d.usuarioId) === empIdObj && normHora(String(d.hora || "")) === normHora(fr)
+      );
+      return !ocupVis && !ocupDesc;
+    });
+
+    const escucharAgendaDia = () => {
+      if (programadasDia.length === 0 && descansosDia.length === 0) {
+        const msgVacio = `Para el día ${fechaObj} no hay visitas programadas todavía. Todas las horas están disponibles.`;
+        setMensajeSistema(msgVacio);
+        hablar(msgVacio);
+        return;
+      }
+      const detalleProg = programadasDia
+        .map((v) => {
+          const enc = usuarios.find((u) => Number(u.id) === Number(v.recolector_id))?.nombre || "sin asignar";
+          return `${v.hora_programada || "hora pendiente"} con ${enc} (${v.codigo})`;
+        })
+        .join("; ");
+      const detalleLibres = empIdObj
+        ? ` Horas disponibles para ${empNombre}: ${horasLibresEmp.length > 0 ? horasLibresEmp.join(", ") : "ninguna"}.`
+        : " Selecciona un encargado para ver sus horas libres.";
+      const textoTotal = `Programados para el ${fechaObj}: ${detalleProg || "ninguno"}.${detalleLibres}`;
+      setMensajeSistema(textoTotal);
+      hablar(textoTotal);
+    };
+
+    const horaActualInput = (horaSel[s.id] || s.hora_programada || "").trim();
+    const hayCruceActual =
+      empIdObj > 0 &&
+      normHora(horaActualInput) !== "" &&
+      (programadasDia.some(
+        (v) => Number(v.recolector_id) === empIdObj && normHora(String(v.hora_programada || "")) === normHora(horaActualInput)
+      ) ||
+        descansosDia.some(
+          (d) => Number(d.usuarioId) === empIdObj && normHora(String(d.hora || "")) === normHora(horaActualInput)
+        ));
+
+    return (
+      <div className="bg-[#FFFFFF] border-2 border-[#0A9B70] rounded-xl p-2.5 flex flex-col gap-2 text-[#1D231F]">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
+          <span className="text-[11px] font-black text-[#063B2E]">
+            🗓️ Agenda del {fechaObj} ({programadasDia.length} programadas)
+          </span>
+          <button
+            type="button"
+            onClick={escucharAgendaDia}
+            className="px-2.5 py-1 rounded-lg bg-[#F6C400] text-[#1D231F] border border-[#063B2E] text-[11px] font-black"
+          >
+            🔊 Escuchar día
+          </button>
+        </div>
+
+        {programadasDia.length === 0 ? (
+          <p className="text-[11px] font-bold text-[#168A2E]">
+            ✅ No hay visitas programadas este día. Todas las horas están libres.
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1 max-h-28 overflow-y-auto pr-1">
+            {programadasDia.map((v) => {
+              const enc = usuarios.find((u) => Number(u.id) === Number(v.recolector_id))?.nombre || "Sin encargado";
+              const mismoEnc = empIdObj > 0 && Number(v.recolector_id) === empIdObj;
+              return (
+                <div
+                  key={v.id}
+                  onClick={() =>
+                    hablar(`Visita ${v.codigo} programada el ${fechaObj} a las ${v.hora_programada || "sin hora"} con ${enc}.`)
+                  }
+                  className={`text-[11px] px-2 py-1 rounded-lg border flex items-center justify-between cursor-pointer ${
+                    mismoEnc
+                      ? "bg-[#F28C00]/20 border-[#F28C00] font-black text-[#1D231F]"
+                      : "bg-stone-50 border-stone-200 text-[#1D231F]"
+                  }`}
+                >
+                  <span>
+                    ⏰ <strong>{v.hora_programada || "Sin hora"}</strong> • {enc}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#063B2E]">{v.codigo}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] font-black text-[#063B2E]">
+            Horas para {empNombre} (toca una disponible):
+          </span>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-1">
+            {franjas.map((fr) => {
+              const visEmp =
+                empIdObj > 0
+                  ? programadasDia.find(
+                      (v) => Number(v.recolector_id) === empIdObj && normHora(String(v.hora_programada || "")) === normHora(fr)
+                    )
+                  : undefined;
+              const descEmp =
+                empIdObj > 0
+                  ? descansosDia.find(
+                      (d) => Number(d.usuarioId) === empIdObj && normHora(String(d.hora || "")) === normHora(fr)
+                    )
+                  : undefined;
+              const ocupado = Boolean(visEmp || descEmp);
+              const seleccionada = normHora(horaActualInput) === normHora(fr);
+
+              return (
+                <button
+                  key={fr}
+                  type="button"
+                  onClick={() => {
+                    if (ocupado) {
+                      const motivo = visEmp ? `la visita ${visEmp.codigo}` : "un descanso";
+                      const alerta = `Hora no disponible: ${empNombre} ya tiene ${motivo} el ${fechaObj} a las ${fr}.`;
+                      setMensajeSistema(alerta);
+                      hablar(alerta);
+                      return;
+                    }
+                    setHoraSel({ ...horaSel, [s.id]: fr });
+                    hablar(`Hora disponible seleccionada: ${fr} para ${empNombre} el ${fechaObj}.`);
+                  }}
+                  className={`py-1 px-1.5 rounded-lg text-[10px] font-black border text-center transition ${
+                    ocupado
+                      ? "bg-[#F28C00] text-[#1D231F] border-[#063B2E] opacity-90 cursor-not-allowed"
+                      : seleccionada
+                      ? "bg-[#168A2E] text-[#FFFFFF] border-[#063B2E]"
+                      : "bg-[#FFFFFF] text-[#063B2E] border-[#168A2E] hover:bg-[#168A2E]/10"
+                  }`}
+                >
+                  {ocupado ? `🚫 ${fr}` : `✅ ${fr}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {hayCruceActual && (
+          <p className="text-[11px] font-black text-[#F28C00] bg-[#1D231F] px-2.5 py-1.5 rounded-lg">
+            ⚠️ {empNombre} ya tiene ocupado el {fechaObj} a las {horaActualInput}. Cambia la hora o el encargado.
+          </p>
+        )}
+      </div>
+    );
+  };
   const esCoordinador =
     usuarioActual?.rol === "coord_huerteros" || usuarioActual?.rol === "coord_recicladores";
   const esRecolector =
@@ -1849,7 +2045,22 @@ export default function EcoConectaPage() {
                         <option value="Mañana (8:00 AM - 12:00 PM)">☀️ Mañana (8:00 AM - 12:00 PM)</option>
                         <option value="Tarde (2:00 PM - 5:00 PM)">🌤️ Tarde (2:00 PM - 5:00 PM)</option>
                       </select>
-                      <button
+                                    <div className="flex flex-col gap-1">
+                <label className="text-xs font-black text-[#063B2E]">📅 Día de recolección solicitado *</label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={audioFechaPreferida}
+                  onFocus={() => hablar("Selecciona el día solicitado para la recolección.")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAudioFechaPreferida(val);
+                    if (val) hablar(`Día seleccionado: ${val}.`);
+                  }}
+                  className="w-full p-2.5 rounded-xl border-2 border-[#168A2E] bg-[#FFFFFF] text-sm font-bold text-[#1D231F]"
+                />
+              </div>
+<button
                         type="button"
                         onClick={registrarSolicitudDesdeAudioCoord}
                         className="bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs"
