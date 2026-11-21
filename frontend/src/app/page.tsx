@@ -752,45 +752,68 @@ export default function EcoConectaPage() {
   };
 
   const programarSolicitud = async (solId: number) => {
-    if (!usuarioActual) return;
-    const recId = recolectorSel[solId];
-    const fecha = fechaSel[solId];
-    const hora = horaSel[solId];
-    if (!recId || !fecha || !hora) {
-      hablar("Selecciona el encargado aprobado, el día y la hora.");
+    if (!usuarioActual) {
+      const m = "Inicia sesión primero para programar la recolección.";
+      setMensajeSistema(m);
+      hablar(m);
       return;
     }
-    const api = getApiUrl();
-    const res = await fetch(`${api}/solicitudes/${solId}/programar`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        "rol-actor": usuarioActual.rol,
-      },
-      body: JSON.stringify({
-        coordinador_id: usuarioActual.id,
-        recolector_id: recId,
-        fecha_programada: fecha,
-        hora_programada: hora,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.tel_recolector) {
-        setLinkWaDirecto(`https://wa.me/${data.tel_recolector}?text=${encodeURIComponent(data.msg_recolector)}`);
-      }
-      if (data.tel_vecino) {
-        setLinkWaSecundario(`https://wa.me/${data.tel_vecino}?text=${encodeURIComponent(data.msg_vecino)}`);
-      }
-      const msg = "Tarea programada. Usa los botones verdes para abrir WhatsApp Business y enviar la ubicación, día y hora al encargado y al vecino.";
-      setMensajeSistema(msg);
-      hablar(msg);
-      cargarDatosPrivados(usuarioActual, false);
-    } else {
-      const err = await res.json();
-      hablar(err.detail || "Error al programar.");
+    const solActual = solicitudes.find((x) => x.id === solId);
+    const recId = recolectorSel[solId] || solActual?.recolector_id;
+    const fecha = fechaSel[solId] || solActual?.fecha_programada || new Date().toISOString().slice(0, 10);
+    const hora = (horaSel[solId] || solActual?.hora_programada || solActual?.disponibilidad_horaria || "").trim();
+
+    if (!recId || !fecha || !hora) {
+      const m = "Selecciona el encargado aprobado, el día y la hora.";
+      setMensajeSistema(m);
+      hablar(m);
+      return;
     }
-  };
+
+    const msgEspera = "Enviando programación al servidor, por favor espera un momento.";
+    setMensajeSistema(msgEspera);
+    hablar(msgEspera);
+
+    try {
+      const api = getApiUrl();
+      const res = await fetch(`${api}/solicitudes/${solId}/programar`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "rol-actor": usuarioActual.rol,
+        },
+        body: JSON.stringify({
+          coordinador_id: usuarioActual.id,
+          recolector_id: Number(recId),
+          fecha_programada: fecha,
+          hora_programada: hora,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        if (data.tel_recolector) {
+          setLinkWaDirecto(`https://wa.me/${data.tel_recolector}?text=${encodeURIComponent(data.msg_recolector || "")}`);
+        }
+        if (data.tel_vecino) {
+          setLinkWaSecundario(`https://wa.me/${data.tel_vecino}?text=${encodeURIComponent(data.msg_vecino || "")}`);
+        }
+        const msg = "Tarea programada. Ya puedes abrir WhatsApp Business para enviar la ubicación, día y hora.";
+        setMensajeSistema(msg);
+        hablar(msg);
+        await cargarDatosPrivados(usuarioActual, false);
+      } else {
+        const errMsg = data.detail || `No se pudo programar (código ${res.status}).`;
+        setMensajeSistema(errMsg);
+        hablar(errMsg);
+      }
+    } catch (e: any) {
+      const netMsg = "Error de conexión con el servidor al programar. Verifica que el backend esté activo.";
+      setMensajeSistema(netMsg);
+      hablar(netMsg);
+    }
+    };
 
   const guardarEdicionSolicitud = async (solId: number) => {
     if (!usuarioActual) return;
