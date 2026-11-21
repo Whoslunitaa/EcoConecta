@@ -731,7 +731,7 @@ async def crear_solicitud(data: CrearSolicitudIn):
 
 @app.get("/solicitudes")
 def listar_solicitudes(rol: str = Header(default=""), usuario_id: int = Header(default=0)):
-    if rol not in ("coord_huerteros", "coord_recicladores", "huertero", "reciclador"):
+    if rol not in ("admin", "coord_huerteros", "coord_recicladores", "huertero", "reciclador"):
         return []
 
     with get_conn() as conn, conn.cursor() as cur:
