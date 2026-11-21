@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ecoconecta_db
+    restart: always
+    environment:
+      POSTGRES_USER: ecoconecta
+      POSTGRES_PASSWORD: ecoconecta123
+      POSTGRES_DB: ecoconecta
+    ports:
+      - "5432:5432"
+    volumes:
+      - ecoconecta_pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecoconecta -d ecoconecta"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: ecoconecta_api
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://ecoconecta:ecoconecta123@db:5432/ecoconecta
+      WHATSAPP_TOKEN: ${WHATSAPP_TOKEN}
+      WHATSAPP_PHONE_ID: ${WHATSAPP_PHONE_ID}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN:-ecoconecta_vsp_2026}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: ecoconecta_web
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  ecoconecta_pgdata:
