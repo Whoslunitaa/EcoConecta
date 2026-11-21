@@ -194,9 +194,9 @@ export default function EcoConectaPage() {
       0: "cero", 1: "uno", 2: "dos", 3: "tres", 4: "cuatro",
       5: "cinco", 6: "seis", 7: "siete", 8: "ocho", 9: "nueve",
       10: "diez", 11: "once", 12: "doce", 13: "trece", 14: "catorce",
-      15: "quince", 16: "dieciséis", 17: "diecisiete", 18: "dieciocho", 19: "diecinueve",
-      20: "veinte", 21: "veintiuno", 22: "veintidós", 23: "veintitrés", 24: "veinticuatro",
-      25: "veinticinco", 26: "veintiséis", 27: "veintisiete", 28: "veintiocho", 29: "veintinueve",
+      15: "quince", 16: "diecis\u00e9is", 17: "diecisiete", 18: "dieciocho", 19: "diecinueve",
+      20: "veinte", 21: "veintiuno", 22: "veintid\u00f3s", 23: "veintitr\u00e9s", 24: "veinticuatro",
+      25: "veinticinco", 26: "veintis\u00e9is", 27: "veintisiete", 28: "veintiocho", 29: "veintinueve",
       30: "treinta", 40: "cuarenta", 50: "cincuenta", 60: "sesenta",
       70: "setenta", 80: "ochenta", 90: "noventa", 100: "cien",
       200: "doscientos", 300: "trescientos", 400: "cuatrocientos", 500: "quinientos",
@@ -250,27 +250,25 @@ export default function EcoConectaPage() {
     const digitosMenu: Record<string, string> = {
       "0": "cero", "1": "uno", "2": "dos", "3": "tres", "4": "cuatro",
       "5": "cinco", "6": "seis", "7": "siete", "8": "ocho", "9": "nueve",
-      "①": "uno", "②": "dos", "③": "tres", "④": "cuatro", "⑤": "cinco",
-      "❶": "uno", "❷": "dos", "❸": "tres", "❹": "cuatro", "❺": "cinco",
+      "\u2460": "uno", "\u2461": "dos", "\u2462": "tres", "\u2463": "cuatro", "\u2464": "cinco",
+      "\u2776": "uno", "\u2777": "dos", "\u2778": "tres", "\u2779": "cuatro", "\u277A": "cinco",
     };
 
     return texto
-            // 1. Convertir TODAS las variantes de emojis numéricos (1️⃣-4️⃣) a palabras claras
-      .replace(/([0-9])[\uFE0E\uFE0F\s]*\u20E3[\uFE0E\uFE0F]*/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
-      .replace(/([0-9])ï¸âƒ£/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
-      .replace(/([0-9])âƒ£/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
-      .replace(/([①②③④⑤❶❷❸❹❺])/g, (_, d) => `Opción ${digitosMenu[d] || d}: `)
+      // 1. Convertir emojis de numeros del menu (1-4 y variantes) a "Opcion uno:", "Opcion dos:", etc.
+      .replace(/([0-9])[\uFE0E\uFE0F\s]*\u20E3[\uFE0E\uFE0F]*/g, (_, d) => `Opci\u00f3n ${digitosMenu[d] || d}: `)
+      .replace(/[\u2460-\u2464\u2776-\u277A]/g, (ch) => `Opci\u00f3n ${digitosMenu[ch] || ""}: `)
       // 2. Eliminar todos los demas emojis decorativos
-      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0F\u200D\u20E3]/g, " ")
+      .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF\uFE0E\uFE0F\u200D\u20E3]/g, " ")
       // 3. Quitar asteriscos y flechas
       .replace(/\*/g, "")
       .replace(/->/g, ", luego ")
-      // 4. Corregir expresiones de genero y horarios 24/7 antes de procesar barras
+      // 4. Corregir expresiones de genero y 24/7 antes de procesar barras
       .replace(/\bvecino\/a\b/gi, "vecino o vecina")
       .replace(/\bvecinos\/as\b/gi, "vecinos o vecinas")
       .replace(/\bhuertero\/a\b/gi, "huertero o huertera")
       .replace(/\breciclador\/a\b/gi, "reciclador o recicladora")
-      .replace(/\b24\s*\/\s*7\b/gi, "veinticuatro horas, los siete días")
+      .replace(/\b24\s*\/\s*7\b/gi, "veinticuatro horas, los siete d\u00edas")
       .replace(/\b24\s*horas\b/gi, "veinticuatro horas")
       .replace(/\b1\/2\b/g, "uno o dos")
       // 5. Fechas completas YYYY-MM-DD o YYYY/MM/DD
@@ -299,22 +297,22 @@ export default function EcoConectaPage() {
       // 8. Reemplazar barras / restantes por "o"
       .replace(/\//g, " o ")
       // 9. Horarios AM / PM y horas
-      .replace(/\b(\d{1,2}):00\s*AM\b/gi, (_, h) => `${numeroAPalabras(h)} de la mañana`)
-      .replace(/\b(\d{1,2}):00\s*PM\b/gi, (_, h) => (parseInt(h, 10) === 12 ? "doce del mediodía" : `${numeroAPalabras(h)} de la tarde`))
+      .replace(/\b(\d{1,2}):00\s*AM\b/gi, (_, h) => `${numeroAPalabras(h)} de la ma\u00f1ana`)
+      .replace(/\b(\d{1,2}):00\s*PM\b/gi, (_, h) => (parseInt(h, 10) === 12 ? "doce del mediod\u00eda" : `${numeroAPalabras(h)} de la tarde`))
       .replace(/\b(\d{1,2}):(\d{2})\b/g, (_, h, min) =>
         min === "00" ? numeroAPalabras(h) : `${numeroAPalabras(h)} y ${numeroAPalabras(min)}`
       )
       .replace(/(\d+)\s*h\b/gi, (_, h) => `${numeroAPalabras(h)} horas`)
-      // 10. Direcciones y casas con guion (ej. 14-20 -> catorce, veinte)
+      // 10. Direcciones y casas con guion
       .replace(/\bMz\.?\s*(\d+)/gi, (_, n) => `manzana ${numeroAPalabras(n)}`)
       .replace(/\bCs\.?\s*(\d+)/gi, (_, n) => `casa ${numeroAPalabras(n)}`)
       .replace(/\bSec\.?\s*(\d+)/gi, (_, n) => `sector ${numeroAPalabras(n)}`)
       .replace(/\b(?:Cra|Kr)\.?\s*(\d+)/gi, (_, n) => `carrera ${numeroAPalabras(n)}`)
       .replace(/\b(?:Cll|Cl)\.?\s*(\d+)/gi, (_, n) => `calle ${numeroAPalabras(n)}`)
-      .replace(/#\s*/g, "número ")
+      .replace(/#\s*/g, "n\u00famero ")
       .replace(/(\d{1,4})\s*-\s*(\d{1,4})/g, (_, a, b) => `${numeroAPalabras(a)}, ${numeroAPalabras(b)}`)
       // 11. Telefonos largos digito por digito
-      .replace(/\+57\s*/g, "más cincuenta y siete, ")
+      .replace(/\+57\s*/g, "m\u00e1s cincuenta y siete, ")
       .replace(/\b\d{7,12}\b/g, (num) =>
         num.split("").map((d) => DICCIONARIO_NUMEROS[parseInt(d, 10)] ?? d).join(", ")
       )
